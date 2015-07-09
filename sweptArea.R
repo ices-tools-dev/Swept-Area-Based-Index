@@ -5,35 +5,24 @@ rm(list = ls())
 # PURPOSE: Swept Area calculations from DATRAS
 # AUTHOR: Scott Large 2015
 # REVIEWED/EXTENDED BY: Axel G. Rossberg (Cefas) 2015
-# vERSION: 0.2
-
-######################
-# CHANGES/ ADDITIONS #
-######################
-# Need to add:
-# Computation of CI for wept area currently too pessimisitic, because 
-# CI are not simply multiplicative.
-
-# Done:
 
 ############
 # PACKAGES #
 ############
 #
-# library(devtools)
-# install_github("slarge/ices")
-# library(ices)
-library(ggplot2)
+library(devtools)
+devtools::install_github("ices-dk/rICES")
+library(rICES)
+# library(ggplot2)
 library(data.table)
 library(reshape2)
 library(arm)
 library(car)
 library(DMwR) #for lofactor(..)
 #
-
-######################
-# Load any functions #
-######################
+##################
+# Load functions #
+##################
 #
 # Calculate distance in kilometers between two points
 earth.dist <- function (long1, lat1, long2, lat2) {
@@ -50,13 +39,13 @@ earth.dist <- function (long1, lat1, long2, lat2) {
   d <- R * c
   return(d)
 }
-
-na.false <- function(x) {return(replace(x,which(is.na(x)),FALSE))}
-
+#
+na.false <- function(x) {return(replace(x, which(is.na(x)), FALSE))}
+#
 #############
 # Load data #
 #############
-
+#
 # If FALSE, mostly suppress CI computation
 need.CI <- FALSE
 #
@@ -73,15 +62,14 @@ CV <- .95
 # Set seed for reproducable results
 setSeed <- set.seed(627)
 #
+HH <- getDATRAS(record = "HH", 
+                survey = "NS-IBTS",
+                startyear = 1965,
+                endyear = 2014,
+                quarters = c(1:4),
+                parallel = T,
+                cores = 4)
 #
-load("HH-26012015_NS-IBTS.Rdat")
-# ## SWC-IBTS (all quarter, 1985-2014)
-# load("HH-2015-04-20_EVHOE.Rdat")
-# load("HH-2015-04-22_IE-IGFS.Rdat") ### outlier! (fixed)
-# load("HH-2015-04-22_FR-CGFS.Rdat")
-# load("HH-2015-04-22_SWC-IBTS.Rdat")
-# load("HH-2015-04-22_BTS-VIIa.Rdat") ### outliers! (fixed)
-
 ###################################
 # Clean up raw data from getHHfun #
 ###################################

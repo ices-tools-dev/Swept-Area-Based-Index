@@ -1,32 +1,41 @@
 ---
 title: "LFI Exploration"
 output: html_notebook
+author: Scott Large
 ---
-# DATRAS
+## DATRAS
 
-The ultimate goal is to translate ICES DATRAS Survey data into swept area abundance, which can be converted into useful indices such as the Large Fish Index (LFI). To get to this point, biological and haul data will need to be processed and in some instances estimated. The first part of the script will clean up the haul data.
-
+The ultimate goal is to translate ICES DATRAS survey data into swept area abundance, which can be converted into useful indices such as the Large Fish Index (LFI). To get to this point, biological and haul data will need to be processed and in some instances estimated. The first part of the script will clean up the haul data.
 
 We will need a few packages to get the data and to wrangle it into a useful format. Note, we're using the "development" version of [icesDATRAS](https://github.com/ices-tools-prod/icesDatras/tree/development) because it should be a bit faster. 
 
-```{r, echo=FALSE}
+```{r, include=TRUE}
 library(devtools)
 install_github("ices-tools-prod/icesDatras@development", quiet = TRUE)
 library(icesDatras)
 library(tidyverse)
+# install_github("hadley/ggplot2")
+library(ggplot2)
+library(knitr)
 library(data.table)
+library(viridis)
+library(DT)
 ```
 
 
-## Haul Data
+### Haul Data
 > "As crazy as hauling timber into the woods." - Horace
 
 Haul data consists of parameters describing how the fishing went - tow length, gear dimensions, and speed. These values can be manipulated to calculate the area fished (gear width * distance towed), so we can expore differences in abundance between years and areas. There are several surveys that we will need to use that have occured in different years and different quarters. Using the combination of survey year and quarters, we can query DATRAS.
 
-```{r, warning=FALSE}
+```{r surveyList, warning=FALSE}
 # List of surveys in DATRAS
 surveyList <- getSurveyList()
+surveyList
+```
 
+Now take the list and download all available surveys from DATRAS
+```{r downloadHH, warning=FALSE}
 # Get an overview of the surveys, years, and quarters
 surveyExpanded <- data.frame()
 for(i in 1:length(surveyList)) {
@@ -47,7 +56,6 @@ for(i in 1:length(surveyList)) {
 surveyExpanded <- rbind(tl, surveyExpanded) 
 }
 
-
 hhdata <- rbindlist(
                   lapply(1:nrow(surveyExpanded),
                          function(x) {
@@ -60,6 +68,271 @@ hhdata <- rbindlist(
 ```
 
 
+```{r}
+# Add unique ID
+hhdata <- hhdata %>%
+  mutate(uniqueID = paste(Survey,
+                          Year,
+                          Quarter,
+                          Ship,
+                          HaulNo,
+                          Gear, sep = "/"))
+```
+
+
+```{r}
+
+validHauls <- "V"
+
+hhdata %>%
+  filter(HaulVal %in% validHauls) %>%
+  mutate(SurveyQ = paste0(Survey, "Q", Quarter)) %>%
+  group_by(SurveyQ, Year) %>%
+  summarize(TOTAL = n()) %>%
+  mutate(QTR = as.character(gsub("[^[:digit:]]", "", SurveyQ))) %>%
+  arrange(SurveyQ) %>%
+  
+  ggplot(aes(x = Year, y = SurveyQ)) +
+  geom_point(stat = "identity", aes(size = TOTAL, fill = factor(QTR)), 
+             color = "grey80", 
+             shape = 21, 
+             alpha = 0.6) +
+  scale_fill_viridis(discrete = TRUE) +
+  labs(title = "Overview of hauls by quarter, year, and survey",
+       subtitle = paste0("HaulVal = '", validHauls, "'"),
+       x = "", y = "Survey and Quarter",
+       size = "Number",
+       fill = "Quarter") +
+  theme_minimal() +
+  theme(legend.key = element_blank(),
+        axis.text.y = element_text(size = 7))
+```
+
+
+Yuck.
+```{r}
+
+hhdata %>%
+  filter(HaulVal %in% validHauls,
+         Distance < 11000) %>%
+  
+  ggplot(aes(x = Distance, y = WingSpread)) +
+  geom_point(stat = "identity", aes(fill = Year,
+                                    color = Year), 
+             # color = "grey80",
+             shape = 21,
+             alpha = 0.7) +
+  scale_fill_viridis(discrete = FALSE) +
+  scale_color_viridis(discrete = FALSE) +
+  labs(title = "Initial swept area",
+       subtitle = paste0("HaulVal = '", validHauls, "'"),
+       x = "Distance", y = "Wing spread", fill = "Year") +
+  theme_minimal() +
+  theme(legend.key = element_blank())
+
+```
+
+
+
+Explore the ships and gears used
+```{r}
+# remove doorspread b/c 179m doorspread at 73m is a mistake. To be estimated with other mixed modals
+hhdata$DoorSpread[hhdata$uniqueID %in% c("NS-IBTS/2013/1/58G2/22/GOV")] <- NA
+
+# 58G2 is the international ship code for GO Stars (G)
+hhdata$Ship[hhdata$Ship %in% "GOS"] <- "58G2"
+
+# It is possible this was incorrectly recorded and should and should be 57.24.00 instead
+hhdata$ShootLat[hhdata$uniqueID == "NS-IBTS/1986/1/ELD/41/GOV"] <- 57.24
+
+# For some reason, these door spreads are not correct and Meadhbh deleted them
+hhdata$DoorSpread[hhdata$uniqueID %in% c("NS-IBTS/1991/1/SCO2/38/GOV",	"NS-IBTS/1991/1/SCO2/60/GOV",	
+                                         "NS-IBTS/1991/1/SCO2/43/GOV", "NS-IBTS/1991/1/SCO2/36/GOV",	
+                                         "NS-IBTS/1991/1/SCO2/37/GOV",	"NS-IBTS/1991/1/SCO2/46/GOV",
+                                         "NS-IBTS/1991/1/SCO2/40/GOV",	"NS-IBTS/1991/1/SCO2/39/GOV",	
+                                         "NS-IBTS/1991/1/SCO2/42/GOV", "NS-IBTS/1991/1/SCO2/45/GOV",	
+                                         "NS-IBTS/1991/1/SCO2/41/GOV",	"NS-IBTS/1991/1/SCO2/44/GOV")] <- NA
+
+# Net opening outlier
+hhdata$Netopening[hhdata$uniqueID == "NS-IBTS/1998/3/CIR/66/GOV"] <- NA
+
+# Seems warp length was recorded in the sweep length column
+den <- hhdata$uniqueID[hhdata$Country == "DEN" &
+             hhdata$SweepLngt > 111]
+den <- den[!is.na(den)]
+
+hhdata$Warplngt[hhdata$uniqueID %in% den] <- hhdata$SweepLngt[hhdata$uniqueID %in% den]
+hhdata$SweepLngt[hhdata$uniqueID %in% den] <- NA
+
+# doorspread is have quite large values in depth range of 74m to 137m
+# KW: Incorrect data make -9 (NA)
+hhdata$DoorSpread[hhdata$uniqueID %in% c( "NS-IBTS/1998/1/DAN2/14/GOV","NS-IBTS/1998/1/DAN2/15/GOV",
+                                          "NS-IBTS/1998/1/DAN2/16/GOV","NS-IBTS/1998/1/DAN2/46/GOV",
+                                          "NS-IBTS/1998/1/DAN2/9/GOV","NS-IBTS/1998/1/DAN2/13/GOV",
+                                          "NS-IBTS/1998/3/DAN2/24/GOV","NS-IBTS/1998/3/DAN2/49/GOV",
+                                          "NS-IBTS/1998/3/DAN2/45/GOV","NS-IBTS/1998/3/DAN2/48/GOV")] <- NA
+
+# For station with unique ID 2004/1/TRI2/42E833/GOV the door spread 
+# is 118m at a depth of 64m. Is the door spread value correct?
+# IdB: We agree it is an outlier, but we cannot find the hard 
+# copies for hauls 1-38 in 2004 so we’re not able to check
+# Decision - remove outlier
+hhdata$DoorSpread[hhdata$uniqueID == "NS-IBTS/2004/1/TRI2/33/GOV"] <- NA
+
+# Question: 1984/1/TRI/4/GOV
+# NetOpening is 8m at depth of 78m. This is an outlier, 
+# but is it a possible value?	
+# IdB: Change into 6, the hard copy is not too clear 
+hhdata$Netopening[hhdata$uniqueID=="NS-IBTS/1984/1/TRI/4/GOV"] <- 6
+
+# hhdata %>%
+#   filter(Survey == "NS-IBTS",
+#          Year %in% c(1993, 1995),
+#          Quarter %in% c(1, 3),
+#          Ship == "THA",
+#          WingSpread > 25) %>% 
+#   # select(WingSpread, StNo)
+#   ggplot(aes(x = WingSpread, y = Depth)) +
+#   geom_point()
+
+# remove 1993 record only
+hhdata$WingSpread[hhdata$uniqueID %in% c("NS-IBTS/1993/3/THA/53/GOV")] <- NA
+# 1995 record changed to 16
+hhdata$WingSpread[hhdata$uniqueID == "NS-IBTS/1995/1/THA/29/GOV"] <- 16
+
+# Netopening is not consistent with depth, 
+# can you verify that these outliers are true values. 
+# YV/FC: Incorrect use -9 
+hhdata$Netopening[hhdata$uniqueID %in% c("NS-IBTS/1993/3/THA/9/GOV", "NS-IBTS/1994/1/THA/31/GOV")] <- NA
+
+# Doorspread is not consistent with depth, 
+# can you verify that these outliers are true values. 
+# YV/FC: Need to be recalculated
+hhdata$DoorSpread[hhdata$uniqueID %in% c( "NS-IBTS/1996/3/THA2/21/GOV","NS-IBTS/1996/3/THA2/20/GOV",
+                                          "NS-IBTS/1997/1/THA2/1/GOV","NS-IBTS/1997/1/THA2/6/GOV",
+                                          "NS-IBTS/1997/1/THA2/8/GOV","NS-IBTS/1997/1/THA2/41/GOV",
+                                          "NS-IBTS/2000/1/THA2/56/GOV","NS-IBTS/2002/1/THA2/29/GOV",
+                                          "NS-IBTS/2010/1/THA2/21/GOV","NS-IBTS/2010/1/THA2/26/GOV",
+                                          "NS-IBTS/2010/1/THA2/29/GOV","NS-IBTS/2015/1/THA2/38/GOV")] <- NA
+
+# Depth of 61m netopening 9.8m. This is an outlier,
+# can you check that the value is correct.
+# YV/FC: Incorrect value
+hhdata$Netopening[hhdata$uniqueID == "NS-IBTS/2011/1/THA2/74/GOV"] <- NA
+
+# Question: haul duration
+# JD: 2008/3/JHJ/259/GOV: this is not an IBTS haul. 
+# Was made for another purpose (should be coded HaulVal=I).         
+# 2008/3/JHJ/269/GOV: it looks like tow time was calculated 
+# incorrectly. Distance =2.4 km, speed at 3.4 n mi = 6.297 km/hr: 
+# 2.4/6.297*60 = 22.9 minutes
+hhdata$HaulVal[hhdata$uniqueID == "NS-IBTS/2008/3/JHJ/259/GOV"] <- "I"
+hhdata$HaulDur[hhdata$uniqueID == "NS-IBTS/2008/3/JHJ/269/GOV"] <- 23
+
+# One sample has a 60 min duration, is there a reason for this?
+# JD: looks to be an error. Distance/speed*60 = 32.4 minutes
+hhdata$HaulDur[hhdata$uniqueID == "NS-IBTS/1999/3/MIC/619/GOV"] <- 32
+
+# 2011/3/JHJ/242/GOV	Netopening is 8.8, at a depth of 64m, 
+# this net opening is an outlier, is the value correct?	
+# JD: Unlikely to be correct. No correction (NA).
+# 1999/3/MIC/591/GOV	Netopeing is 7.7m depth 47m, this net opening
+# is a meter more than the next largest value. 
+# Is this an acceptable value for this ship?	
+# Unlikely to be correct. No correction (NA).
+
+hhdata$Netopening[hhdata$uniqueID %in% c("NS-IBTS/2011/3/JHJ/242/GOV", "NS-IBTS/1999/3/MIC/591/GOV")] <- NA
+
+# At station with unique ID 2000/3/CIR/17/GOV the shoot and haul lat
+# and long are the same values, can you check this please?
+# G.B  Original data available. Haul long Input incorrectly. Change posn
+# Shot: 54.639; 5.501
+# Haul: 54.641; 5.564
+# need to change all postional data
+hhdata$ShootLat[hhdata$uniqueID == "NS-IBTS/2000/3/CIR/17/GOV"] <- 54.639
+hhdata$ShootLong[hhdata$uniqueID == "NS-IBTS/2000/3/CIR/17/GOV"] <- 5.501
+hhdata$HaulLat[hhdata$uniqueID == "NS-IBTS/2000/3/CIR/17/GOV"] <- 54.641
+hhdata$HaulLong[hhdata$uniqueID == "NS-IBTS/2000/3/CIR/17/GOV"] <- 5.564
+
+# quick check from Appendix 1 Figure 1.1.3.3 which highlights a haul duration of
+# 90 minutes in the haul with unique ID 1995/4/GWD/49/GOV. Is this correct?
+# Y.V & F.C:  This should be 30 mins not 90 mins.
+# haul not corrected
+hhdata$HaulDur[hhdata$uniqueID == "FR-CGFS/1995/4/GWD/49/GOV"] <-30
+
+plot(hhdata$ShootLong[hhdata$Survey=="FR-CGFS"], 
+     hhdata$ShootLat[hhdata$Survey=="FR-CGFS"],
+     pch=19)
+abline(h=49.5, col="grey")
+abline(h=50, col="grey")
+abline(h=50.5, col="grey")
+abline(h=51, col="grey")
+abline(v=-1, col="grey")
+abline(v=0, col="grey")
+abline(v=1, col="grey")
+abline(v=2, col="grey")
+
+# find stations on land
+# landlocked<-hhdata[hhdata$StatRec=="27F0"]
+points(hhdata$ShootLong[hhdata$uniqueID=="FR-CGFS/2012/4/GWD/49/GOV"], 
+       hhdata$ShootLat[hhdata$uniqueID=="FR-CGFS/2012/4/GWD/49/GOV"],
+       pch=19, col="red")
+points(hhdata$ShootLong[hhdata$uniqueID=="FR-CGFS/2012/4/GWD/50/GOV"], 
+       hhdata$ShootLat[hhdata$uniqueID=="FR-CGFS/2012/4/GWD/50/GOV"],
+       pch=19, col="red")
+points(hhdata$ShootLong[hhdata$uniqueID=="FR-CGFS/2012/4/GWD/51/GOV"], 
+       hhdata$ShootLat[hhdata$uniqueID=="FR-CGFS/2012/4/GWD/51/GOV"],
+       pch=19, col="red")
+# landlocked<-hhdata[hhdata$StatRec=="28F0"]
+points(hhdata$ShootLong[hhdata$uniqueID=="FR-CGFS/2012/4/GWD/52/GOV"], 
+       hhdata$ShootLat[hhdata$uniqueID=="FR-CGFS/2012/4/GWD/52/GOV"],
+       pch=19, col="red")
+points(hhdata$ShootLong[hhdata$uniqueID=="FR-CGFS/2012/4/GWD/53/GOV"], 
+       hhdata$ShootLat[hhdata$uniqueID=="FR-CGFS/2012/4/GWD/53/GOV"],
+       pch=19, col="red")
+
+
+hhdata %>%
+  filter(Survey == "NS-IBTS",
+         Ship == "THA2",
+         Gear == "GOV",
+         Year == 1996) %>%
+  ggplot(aes(x = Depth, y = DoorSpread)) +
+  geom_point(aes(color = Year))
+# 
+# hhdata %>%
+#   filter(Survey == "NS-IBTS",
+#          Year == 1993,
+#          Quarter == 3,
+#          Ship == "THA") %>%
+#   ggplot(aes(x = Depth, y = Netopening)) +
+#   geom_point(aex(color = Year))
+
+
+# 
+#   group_by(Survey, Ship, Gear) %>%
+#   summarize(TOTAL = n()) %>%
+#   datatable()
+```
+
+
+Some data needs to be removed
+```{r}
+# Question: Why was the ship SOL used in Q1, 1992, 
+# and why was the area surveyed so different in this year?        
+# MK: SOL shouldn't be here. GOV is non standard and the data
+# shouldn't be included in DATRAS. 
+badDat <- hhdata$uniqueID[hhdata$Year == 1992 &
+                              hhdata$Country == "GFR" &
+                              hhdata$Ship == "SOL"]
+
+hhdata <- hhdata[!hhdata$uniqueID %in% badDat,]
+
+# remove country DUM - Not standard survey
+hhdata <- hhdata[hhdata$Country != "DUM",]
+
+```
+
 
 ## Biological data
 
@@ -67,7 +340,10 @@ hhdata <- rbindlist(
 
 Now, we can download all of the biological data. This should be fun, last time I ran it, there were ```scales::comma(nrow(hldata))``` rows (probably takes 30 minutes to download)!
 
-```{r}
+Now, we can download all of the biological data.
+
+
+```{r downloadHL, eval=FALSE, include=FALSE}
 
 hldata <- rbindlist( 
                   lapply(1:nrow(surveyExpanded),

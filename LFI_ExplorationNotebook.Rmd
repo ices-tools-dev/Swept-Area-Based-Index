@@ -29,6 +29,14 @@ library(DT)
 Haul data consists of parameters describing how the fishing went - tow length, gear dimensions, and speed. These values can be manipulated to calculate the area fished (gear width * distance towed), so we can expore differences in abundance between years and areas. There are several surveys that we will need to use that have occured in different years and different quarters. Using the combination of survey year and quarters, we can query DATRAS.
 
 ```{r surveyList, warning=FALSE}
+
+# hh_bits <- getDATRAS(record = "HH", "BITS", years = 1991:2017, quarters = c(1,4))
+# 
+# hl_bits <- getDATRAS(record = "HL", "BITS", years = 1991:2017, quarters = c(1,4))
+# 
+# ca_bits <- getDATRAS(record = "CA", "BITS", years = 1991:2017, quarters = c(1,4))
+
+
 # List of surveys in DATRAS
 surveyList <- getSurveyList()
 surveyList

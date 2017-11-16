@@ -22,18 +22,28 @@ library(icesVocab)
 # Download data #
 #~~~~~~~~~~~~~~~#
 
-# hh_bits <- getDATRAS(record = "HH", "BITS", years = 2001:2017, quarters = 1)
+hh_bits <- getDATRAS(record = "HH", "BITS", years = 2001:2017, quarters = 1)
 # saveRDS(hh_bits, file = "~/git/ices-dk/LFI/hh_bits.rds")
 
+hl_bits <- getDATRAS(record = "HL", "BITS", years = 2001:2017, quarters = 1)
 
-# ca_bits<-getDATRAS(record="CA",survey =  "BITS", years = 2001:2017, quarters = 1)
+ca_bits<-getDATRAS(record="CA",survey =  "BITS", years = 2001:2017, quarters = 1)
 
-ca_bits <- readRDS("~/git/ices-dk/LFI/ca_bits.rds")
+#ca_bits <- readRDS("~/git/ices-dk/LFI/ca_bits.rds")#what's this for?
 
 speclist <- getCodeList("SpecWoRMS")
 
 # speclist <- rbind(speclist,
 #                   read.csv("Aphias_WoRMS_add.csv"))
+hl_bits <- left_join(hl_bits, 
+                     speclist %>% 
+                       select(Key, 
+                              Description),
+                     by = c("Valid_Aphia" = "Key")) %>%
+  rename(Species = Description)
+
+
+
 ca_bits <- left_join(ca_bits, 
                     speclist %>% 
                       select(Key, 
@@ -53,7 +63,7 @@ ca_bitslm <- ca_bits %>%
   filter(Species %in% LFIspecies) %>% 
   filter(IndWgt > 0) %>% 
   filter(!is.na(IndWgt)) %>%
-  group_by(Year, Gear, AreaCode, Species)%>%
+  group_by(Country, Ship, Year, Gear,Species)%>%
   do(lm = lm(log(IndWgt) ~ log(LngtClass), data = ., 
              singular.ok = T, 
              na.action = na.exclude))
@@ -74,9 +84,62 @@ ca_bitslm <- ca_bitslm %>% select(term,
 # ca_bits%>%filter(Year==1991&Gear=="FOT"&AreaCode=="38G3"&Species=="Gadus morhua" )%>%
 #   lm(log(IndWgt)~log(LngtClass), data = .) 
 
+#hl_bits <- getDATRAS(record = "HL", "BITS", years = 2001:2017, quarters = 1)
 
 
+hl_bits2 <- hl_bits %>%
+  filter(Species %in% LFIspecies)
+        
 
+#here
+hlca_bits <- left_join(hl_bits2, ca_bitslm)
+
+
+all_bits <- left_join(hlca_bits,
+                      hh_bits,
+                      by = c("Survey", "Quarter", 
+                             "Country", "Ship", "Gear", "SweepLngt", "GearExp", 
+                             "DoorType", "StNo", "HaulNo", "Year", "DateofCalculation"))
+                      
+
+all_bits$WgtClass <- (all_bits$slope*all_bits$LngtClass+ all_bits$intercept)
+
+all_bits<- all_bits %>%
+  filter(HaulVal == "V", DayNight =="D")
+
+
+all_bits$HLMassAtLngt <- (all_bits$WgtClass*all_bits$HLNoAtLngt/ all_bits$HaulDur)
+
+#some graphs per species
+cod <- all_bits %>%
+  filter(Species =="Gadus morhua")
+
+ggplot(cod, aes(x=LngtClass, y=HLMassAtLngt, shape=Gear, color=Year)) +
+  geom_point()
+
+flo <- all_bits %>%
+  filter(Species =="Platichthys flesus")
+
+ggplot(flo, aes(x=LngtClass, y=HLMassAtLngt, shape=Gear, color=Year)) +
+  geom_point()
+
+sol <- all_bits %>%
+  filter(Species =="Pleuronectes platessa")
+
+ggplot(sol, aes(x=LngtClass, y=HLMassAtLngt, shape=Gear, color=Year)) +
+  geom_point()
+
+tur <- all_bits %>%
+  filter(Species =="Scophthalmus maximus")
+
+ggplot(tur, aes(x=LngtClass, y=HLMassAtLngt, shape=Gear, color=Year)) +
+  geom_point()
+
+whi <- all_bits %>%
+  filter(Species =="Merlangius merlangus")
+
+ggplot(whi, aes(x=LngtClass, y=HLMassAtLngt, shape=Gear, color=Year)) +
+  geom_point()
 
 
 

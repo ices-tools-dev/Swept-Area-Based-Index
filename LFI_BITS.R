@@ -101,14 +101,14 @@ all_bits <- left_join(hlca_bits,
                              "Country", "Ship", "Gear", "SweepLngt", "GearExp", 
                              "DoorType", "StNo", "HaulNo", "Year", "DateofCalculation"))
                       
+#Not sure whether this is correct...help:
 
-all_bits$WgtClass <- (all_bits$slope*all_bits$LngtClass+ all_bits$intercept)
-
+all_bits$WgtClass <- (all_bits$slope*all_bits$LngtClass+ all_bits$intercept) 
 all_bits<- all_bits %>%
   filter(HaulVal == "V", DayNight =="D")
 
 
-all_bits$HLMassAtLngt <- (all_bits$WgtClass*all_bits$HLNoAtLngt/ all_bits$HaulDur)
+all_bits$HLMassAtLngt <- ((all_bits$WgtClass*all_bits$HLNoAtLngt) / all_bits$HaulDur)
 
 #some graphs per species
 cod <- all_bits %>%
@@ -141,7 +141,14 @@ whi <- all_bits %>%
 ggplot(whi, aes(x=LngtClass, y=HLMassAtLngt, shape=Gear, color=Year)) +
   geom_point()
 
+#trying to find more informative graphs
 
+p <- ggplot(all_bits, aes(LngtClass, HLMassAtLngt, color = LngtClass))
+q<- p + geom_point() 
+r<- q + facet_grid(Species ~ Year)
+r
+
+#better
 
 ## Length classes consistency
 ca_bits%>%ggplot(aes(LngtClass,IndWgt,color=LngtCode))+geom_point()

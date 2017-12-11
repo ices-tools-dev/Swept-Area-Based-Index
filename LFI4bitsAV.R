@@ -195,31 +195,147 @@ q<- p + geom_point()
 r<- q + facet_grid(Species ~ Year)
 r
 
+#in order not to have to run all this everytime:
+
+save(bits, file = "bits.RData")
+
+load("bits.RData")
 #create different LFI for different L<sub>LF from 10 to 50
 
 
 # ahhhhh!!!
 
-  lfi10 <- bits%>%
-  group_by(Year)%>%
-  if ( LngtClass < 10) sum(bits$biomdens)
+  bits <- bits %>%
+    mutate(length_bin = case_when(
+      LngtClass > 0 &
+        LngtClass <= 10 ~ 10,
+      LngtClass > 11 & 
+            LngtClass <= 20 ~ 20,
+      LngtClass > 21 &
+        LngtClass <= 30 ~ 30,
+      LngtClass > 31 &
+        LngtClass <= 40 ~ 40,
+      LngtClass > 41 &
+        LngtClass <= 50 ~ 50,
+      LngtClass >51 ~ 60,
+      TRUE ~ NA_real_))
 
 
-
-
-
+bits2 <-  bits[!is.na(bits$biomdens),]  
   
-else if (condition == 20){
-    group_by(Year)%>%
-    do(lf= for(LngClass <= 20), sum(biomdens)/sum(biomdens)))
-    %>% return(lf)
-  }}
+  
+#lfi_all <- data.frame(matrix(ncol = 6, nrow = 26 ))
+                        
+#colnames(lfi_all)<- c("Year","lfi10","lfi20","lfi30","lfi40","lfi50")
 
-  df1 %>%
-    group_by(!!group_var) %>%
-    summarise(seats=n())
-}
+#lfi_all$Year <- unique(bits$Year, na.rm =TRUE)
+  
+#lfi_all$lfi10 <- bits %>%
+#    group_by(Year)%>%
+#    filter(bits$length_bin >10) %>%
+#    sum(biomdens)
+  
+#lfi_all$lfi10 <- bits %>% 
+#  group_by(Year) %>%
+#  sum(bits$biomdens, na.rm =TRUE)
+  #
 
+lfi_calca <-bits2 %>%
+  group_by(Year, length_bin) %>%
+  summarise(lfi = sum(biomdens))
+
+
+lfi_10<- lfi_calca %>%
+  group_by(Year)%>%
+  filter(length_bin > 10)%>%
+  summarise(lfi10 = sum(lfi))
+ 
+
+ lfi_20<- lfi_calca %>%
+  group_by(Year)%>%
+  filter(length_bin > 20)%>%
+  summarise(lfi20 = sum(lfi)) 
+
+lfi_30<- lfi_calca %>%
+  group_by(Year)%>%
+  filter(length_bin > 30)%>%
+  summarise(lfi30 = sum(lfi)) 
+  
+lfi_40<- lfi_calca %>%
+  group_by(Year)%>%
+  filter(length_bin > 40)%>%
+  summarise(lfi40 = sum(lfi)) 
+ 
+lfi_50<- lfi_calca %>%
+  group_by(Year)%>%
+  filter(length_bin > 50)%>%
+  summarise(lfi50 = sum(lfi)) 
+   
+lfiperyear <- lfi_calca %>% group_by(Year) %>% summarise(lfitot= sum(lfi))  
+
+lfi_10 <- left_join(lfi_10,lfiperyear) 
+lfi_20 <- left_join(lfi_20,lfiperyear)     
+lfi_30 <- left_join(lfi_30,lfiperyear) 
+lfi_40 <- left_join(lfi_40,lfiperyear) 
+lfi_50 <- left_join(lfi_50,lfiperyear) 
+
+lfi_10$lfi10 <- lfi_10$lfi10/lfi_10$lfitot
+lfi_20$lfi20 <- lfi_20$lfi20/lfi_20$lfitot
+lfi_30$lfi30 <- lfi_30$lfi30/lfi_30$lfitot
+lfi_40$lfi40 <- lfi_40$lfi40/lfi_40$lfitot
+lfi_50$lfi50 <- lfi_50$lfi50/lfi_50$lfitot
+
+lfi_timeseries <- left_join(lfi_10,lfi_20)
+lfi_timeseries <- left_join(lfi_timeseries,lfi_30)
+lfi_timeseries <- left_join(lfi_timeseries,lfi_40)
+lfi_timeseries <- left_join(lfi_timeseries,lfi_50)
+
+lfi_timeseries <- subset(lfi_timeseries, select = -lfitot) 
+lfi_timeseries <- melt(lfi_timeseries, id="Year")
+
+ggplot(data=lfi_timeseries,
+       aes(x=Year, y=value, colour=variable)) +
+  geom_line()
+
+model10 <- lm(lfi_10$lfi10 ~ poly(lfi_10$Year,5))
+
+summary(model10)
+
+model20 <- lm(lfi_20$lfi20 ~ poly(lfi_20$Year,5))
+
+summary(model20)
+
+model30 <- lm(lfi_30$lfi30 ~ poly(lfi_30$Year,5))
+
+summary(model30)
+
+model40 <- lm(lfi_40$lfi40 ~ poly(lfi_40$Year,5))
+
+summary(model40)
+
+model50 <- lm(lfi_50$lfi50 ~ poly(lfi_50$Year,5))
+
+summary(model50)
+
+#best is lfi when Llf = 50!, but maybe taking into account p-values, 
+#residuals and dg might be better Llf = 40? 
+
+ggplot(data=lfi_50,
+       aes(x=Year, y=lfi50)) +
+  geom_point()+geom_line()
+
+ggplot(data=lfi_10,
+       aes(x=Year, y=lfi10)) +
+  geom_point()+geom_line()
+ggplot(data=lfi_20,
+       aes(x=Year, y=lfi20)) +
+  geom_point()+geom_line()
+ggplot(data=lfi_30,
+       aes(x=Year, y=lfi30)) +
+  geom_point()+geom_line()
+ggplot(data=lfi_40,
+       aes(x=Year, y=lfi40)) +
+  geom_point()+geom_line()
 # Test the function
 my_summary(df1, 1)
 

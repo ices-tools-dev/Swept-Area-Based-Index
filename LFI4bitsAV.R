@@ -165,9 +165,15 @@ q
 
 bits$Netopening[bits$Netopening > 25] <- NA
 
-p <- ggplot(bits, aes(Netopening, Ship))
+p <- ggplot(bits, aes(Netopening, Year))
 q<- p + geom_point() 
 q
+
+p <- ggplot(bits, aes(Distance, Year))
+q<- p + geom_point() 
+q
+
+
 #Still 26HF and HAF have very low values of Netopening, what to do with these?
 
 #mean Netopening per ship and year shitttHEREEE

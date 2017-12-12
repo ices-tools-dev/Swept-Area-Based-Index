@@ -17,6 +17,8 @@ library(broom)
 library(ggplot2)
 #devtools::install_github("ices-tools-prod/icesVocab")
 library(icesVocab)
+library(reshape2)
+
 
 #~~~~~~~~~~~~~~~#
 # Download data #
@@ -151,10 +153,25 @@ bits <- transform(bits, Distance = ifelse(!is.na(Distance), Distance, Distance2)
 sum(is.na(bits$Distance))
 sum(is.na(bits$Distance2))  #572 out of 14300, is that ok? 
 
-#remove two outliers
+
+
+
+#remove outliers, up to where?
 
 bits <- bits[!bits$Distance > 15000, ]
-bits <- bits[!bits$Distance2 > 15000, ]
+
+
+p <- ggplot(bits, aes(Distance, Year))
+q<- p + geom_point() 
+q
+
+#do you think this is an outlier?
+
+#FROM here, I will go to the end of the script and try two things:
+#1:same LFI with DoorSpread instead of NetOpening
+#2: back with NetOpening, substituting missing data 
+#with the mean value per year
+
 
 sum(is.na(bits$Netopening)) #5410, a bit too much
 
@@ -164,6 +181,14 @@ q
 #2 outliers in DAN2 I will transform them to NA
 
 bits$Netopening[bits$Netopening > 25] <- NA
+
+sum(is.na(bits$DoorSpread)) #5725, even more
+
+p <- ggplot(bits, aes(DoorSpread, Ship))
+q<- p + geom_point() 
+q
+
+# one oulier here, out?
 
 p <- ggplot(bits, aes(Netopening, Year))
 q<- p + geom_point() 
@@ -352,59 +377,417 @@ write.csv(lfi, file = "LFI.csv")
 
 #better
 
-## Length classes consistency
+#########################################
+#december 12: with DoorSpread instead of NetOpening:
+#################################################
+sum(is.na(bits$DoorSpread)) #5725, even more
 
-bits%>%ggplot(aes(LngtClass,WgtAtLngt,color=Species))+geom_point() + facet_grid(Year ~ Species)
+p <- ggplot(bits, aes(DoorSpread, Ship))
+q<- p + geom_point() 
+q
 
-bits%>%ggplot(aes(Year,WgtAtLngt,color=LngtClass))+geom_point() + facet_grid(bits$Species)
+# one oulier here, out?
 
+bits$DoorSpread[bits$DoorSpread > 400] <- NA
 
-bits%>%ggplot(aes(LngtClass,IndWgt,color=Species))+geom_point()
+p <- ggplot(bits, aes(Distance, Year))
+q<- p + geom_point() 
+q
 
+#i will remove the values over 7500
 
+bits$Distance[bits$Distance > 7500] <- NA
 
+p <- ggplot(bits, aes(DoorSpread, Ship)) #also here, same data I think
+q<- p + geom_point() 
+q
+#also small numbers should be substituted by NAs
 
-#save(ca_bits,file="ca_bits.RData" )
-load("ca_bits.RData")
-
-dim(ca_bits%>%filter(IndWgt==-9))[1]/dim(ca_bits)[1]*100## percent of IndWght gaps
-
-##Add latin names
-speclist <- getCodeList("SpecWoRMS")
-speclist <-rbind(speclist,read.csv("Aphias_WoRMS_add.csv"))
-ca_bits <-left_join(ca_bits, speclist%>%select(Key, Description), by=c("Valid_Aphia"="Key"))%>%rename(Species=Description)
-##Define species list includded in the LFI calculation
-LFIspecies<- c("Gadus morhua", "Platichthys flesus", "Pleuronectes platessa",  "Scophthalmus maximus" , "Merlangius merlangus"  )
-
-##Fit the linear models
-ca_bitslm<-ca_bits%>%filter(Species%in%LFIspecies)%>%filter(IndWgt>0)%>%filter(!is.na(IndWgt))%>%group_by(Year,Gear, AreaCode, Species)%>%
-  do(lm=lm(log(IndWgt) ~ log(LngtClass), data = ., singular.ok = T, na.action=na.exclude))
-
-ca_bit2lm<-ca_bit2%>%filter(Species%in%LFIspecies)%>%filter(IndWgt>0)%>%filter(!is.na(IndWgt))%>%group_by(Year,Gear, AreaCode, Species)%>%
-  do(lm=lm(log(IndWgt) ~ log(LngtClass), data = ., singular.ok = T, na.action=na.exclude))
+bits$DoorSpread[bits$DoorSpread < 10] <- NA
 
 
+bits$sweptarea <- bits$DoorSpread*bits$Distance
+
+bits$WgtAtLngt <- bits$IndWgt*bits$HLNoAtLngt
+
+bits$biomdens <- bits$WgtAtLngt/bits$sweptarea
+
+#trying to find more informative graphs
+
+p <- ggplot(bits, aes(LngtClass, biomdens, color = Species))
+q<- p + geom_point() 
+r<- q + facet_grid(Species ~ Year)
+r
+
+
+bits <- bits %>%
+  mutate(length_bin = case_when(
+    LngtClass > 0 &
+      LngtClass <= 10 ~ 10,
+    LngtClass > 11 & 
+      LngtClass <= 20 ~ 20,
+    LngtClass > 21 &
+      LngtClass <= 30 ~ 30,
+    LngtClass > 31 &
+      LngtClass <= 40 ~ 40,
+    LngtClass > 41 &
+      LngtClass <= 50 ~ 50,
+    LngtClass >51 ~ 60,
+    TRUE ~ NA_real_))
+
+
+sum(is.na(bits$biomdens))
+
+bits2 <-  bits[!is.na(bits$biomdens),]  
+
+
+#lfi_all <- data.frame(matrix(ncol = 6, nrow = 26 ))
+
+#colnames(lfi_all)<- c("Year","lfi10","lfi20","lfi30","lfi40","lfi50")
+
+#lfi_all$Year <- unique(bits$Year, na.rm =TRUE)
+
+#lfi_all$lfi10 <- bits %>%
+#    group_by(Year)%>%
+#    filter(bits$length_bin >10) %>%
+#    sum(biomdens)
+
+#lfi_all$lfi10 <- bits %>% 
+#  group_by(Year) %>%
+#  sum(bits$biomdens, na.rm =TRUE)
+#
+
+lfi_calca <-bits2 %>%
+  group_by(Year, length_bin) %>%
+  summarise(lfi = sum(biomdens))
+
+
+lfi_10<- lfi_calca %>%
+  group_by(Year)%>%
+  filter(length_bin > 10)%>%
+  summarise(lfi10 = sum(lfi))
+
+
+lfi_20<- lfi_calca %>%
+  group_by(Year)%>%
+  filter(length_bin > 20)%>%
+  summarise(lfi20 = sum(lfi)) 
+
+lfi_30<- lfi_calca %>%
+  group_by(Year)%>%
+  filter(length_bin > 30)%>%
+  summarise(lfi30 = sum(lfi)) 
+
+lfi_40<- lfi_calca %>%
+  group_by(Year)%>%
+  filter(length_bin > 40)%>%
+  summarise(lfi40 = sum(lfi)) 
+
+lfi_50<- lfi_calca %>%
+  group_by(Year)%>%
+  filter(length_bin > 50)%>%
+  summarise(lfi50 = sum(lfi)) 
+
+lfiperyear <- lfi_calca %>% group_by(Year) %>% summarise(lfitot= sum(lfi))  
+
+lfi_10 <- left_join(lfi_10,lfiperyear) 
+lfi_20 <- left_join(lfi_20,lfiperyear)     
+lfi_30 <- left_join(lfi_30,lfiperyear) 
+lfi_40 <- left_join(lfi_40,lfiperyear) 
+lfi_50 <- left_join(lfi_50,lfiperyear) 
+
+lfi_10$lfi10 <- lfi_10$lfi10/lfi_10$lfitot
+lfi_20$lfi20 <- lfi_20$lfi20/lfi_20$lfitot
+lfi_30$lfi30 <- lfi_30$lfi30/lfi_30$lfitot
+lfi_40$lfi40 <- lfi_40$lfi40/lfi_40$lfitot
+lfi_50$lfi50 <- lfi_50$lfi50/lfi_50$lfitot
+
+lfi_timeseries <- left_join(lfi_10,lfi_20)
+lfi_timeseries <- left_join(lfi_timeseries,lfi_30)
+lfi_timeseries <- left_join(lfi_timeseries,lfi_40)
+lfi_timeseries <- left_join(lfi_timeseries,lfi_50)
+
+lfi_timeseries <- subset(lfi_timeseries, select = -lfitot) 
+lfi_timeseries <- melt(lfi_timeseries, id="Year")
+
+ggplot(data=lfi_timeseries,
+       aes(x=Year, y=value, colour=variable)) +
+  geom_line()
+
+model10 <- lm(lfi_10$lfi10 ~ poly(lfi_10$Year,5))
+
+summary(model10)
+
+model20 <- lm(lfi_20$lfi20 ~ poly(lfi_20$Year,5))
+
+summary(model20)
+
+model30 <- lm(lfi_30$lfi30 ~ poly(lfi_30$Year,5))
+
+summary(model30)
+
+model40 <- lm(lfi_40$lfi40 ~ poly(lfi_40$Year,5))
+
+summary(model40)
+
+model50 <- lm(lfi_50$lfi50 ~ poly(lfi_50$Year,5))
+
+summary(model50)
+
+
+
+ggplot(data=lfi_50,
+       aes(x=Year, y=lfi50)) +
+  geom_point()+geom_line()
+
+ggplot(data=lfi_10,
+       aes(x=Year, y=lfi10)) +
+  geom_point()+geom_line()
+ggplot(data=lfi_20,
+       aes(x=Year, y=lfi20)) +
+  geom_point()+geom_line()
+ggplot(data=lfi_30,
+       aes(x=Year, y=lfi30)) +
+  geom_point()+geom_line()
+ggplot(data=lfi_40,
+       aes(x=Year, y=lfi40)) +
+  geom_point()+geom_line()
+# Test the function
+my_summary(df1, 1)
 
 
 
 
-
-#### To do: filter W-L models with more than (10, 30?) observations. Maybe additional consistency check +-1 sd of all slopes in the database? 
-table(ca_bits$AreaCode, ca_bits$Species[ca_bits$Species %in% spec])
-
-###Check records with no slope estimates 
-View(ca_bitslm[which(is.na(ca_bitslm$slope)),])
-View(ca_bitslm[which(is.na(ca_bitslm$slope)),]%>%group_by(Year)%>%summarise(n()))
-
-ca_bits%>%filter(Year==1991&Gear=="P20"&AreaCode=="37G8"&Species=="Gadus morhua")
-log(53)
-ca_bits%>%filter(Year==1991&Gear=="P20"&AreaCode=="37G8"&Species=="Gadus morhua")%>%
-  lm(log(LngtClass)~log(IndWgt), data=.)
+#######################################
+#substituting NAs of Netopening with mean of the year
+############################################################
 
 
-#save.image("LFI.RData")
-load("LFI.RData")
+sum(is.na(bits$Netopening)) #5410, a bit too much
 
+p <- ggplot(bits, aes(Netopening, Ship))
+q<- p + geom_point() 
+q
+#2 outliers in DAN2 I will transform them to NA
+
+bits$Netopening[bits$Netopening > 25] <- NA
+
+sum(is.na(bits$Netopening)) #5410, a bit too much
+
+p <- ggplot(bits, aes(Netopening, Ship))
+q<- p + geom_point() 
+q
+
+p <- ggplot(bits, aes(Netopening, Year))
+q<- p + geom_point() 
+q
+
+#remove also the small ones?
+
+bit2 <- bits %>%
+  group_by(Year) 
+
+##HERE
+
+bits2$Netopening[is.na(bits2$Netopening)] = mean(bits2$Netopening, na.rm=TRUE)
+
+
+bits2 <-  bits[!is.na(bits$Netopening),]  
+
+bits2$MeanNetopening <- bits2%>%
+  group_by(Year)%>%
+  mean(bits2$Netopening)
+  
+p <- ggplot(bits, aes(Distance, Distance2))
+q<- p + geom_point() 
+q
+
+#subsitute NAs in Distance for this calculation
+
+bits <- transform(bits, Distance = ifelse(!is.na(Distance), Distance, Distance2))
+
+sum(is.na(bits$Distance))
+# one oulier here, out?
+
+p <- ggplot(bits, aes(Netopening, Year))
+q<- p + geom_point() 
+q
+
+p <- ggplot(bits, aes(Distance, Year))
+q<- p + geom_point() 
+q
+
+
+#Still 26HF and HAF have very low values of Netopening, what to do with these?
+
+#mean Netopening per ship and year shitttHEREEE
+
+#temp <- aggregate(bits$Netopening,
+#          list(Ship = bits$Ship, Year= bits$Year),
+#          mean)
+
+#there are too many ships with missing data, what to do?
+
+p <- ggplot(bits, aes(DoorSpread, Ship)) #also here, same data I think
+q<- p + geom_point() 
+q
+
+bits$sweptarea <- bits$Netopening*bits$Distance
+
+bits$WgtAtLngt <- bits$IndWgt*bits$HLNoAtLngt
+
+bits$biomdens <- bits$WgtAtLngt/bits$sweptarea
+
+#trying to find more informative graphs
+
+p <- ggplot(bits, aes(LngtClass, biomdens, color = Species))
+q<- p + geom_point() 
+r<- q + facet_grid(Species ~ Year)
+r
+
+#in order not to have to run all this everytime:
+
+save(bits, file = "bits.RData")
+
+load("bits.RData")
+#create different LFI for different L<sub>LF from 10 to 50
+
+
+# ahhhhh!!!
+
+bits <- bits %>%
+  mutate(length_bin = case_when(
+    LngtClass > 0 &
+      LngtClass <= 10 ~ 10,
+    LngtClass > 11 & 
+      LngtClass <= 20 ~ 20,
+    LngtClass > 21 &
+      LngtClass <= 30 ~ 30,
+    LngtClass > 31 &
+      LngtClass <= 40 ~ 40,
+    LngtClass > 41 &
+      LngtClass <= 50 ~ 50,
+    LngtClass >51 ~ 60,
+    TRUE ~ NA_real_))
+
+
+bits2 <-  bits[!is.na(bits$biomdens),]  
+
+
+#lfi_all <- data.frame(matrix(ncol = 6, nrow = 26 ))
+
+#colnames(lfi_all)<- c("Year","lfi10","lfi20","lfi30","lfi40","lfi50")
+
+#lfi_all$Year <- unique(bits$Year, na.rm =TRUE)
+
+#lfi_all$lfi10 <- bits %>%
+#    group_by(Year)%>%
+#    filter(bits$length_bin >10) %>%
+#    sum(biomdens)
+
+#lfi_all$lfi10 <- bits %>% 
+#  group_by(Year) %>%
+#  sum(bits$biomdens, na.rm =TRUE)
+#
+
+lfi_calca <-bits2 %>%
+  group_by(Year, length_bin) %>%
+  summarise(lfi = sum(biomdens))
+
+
+lfi_10<- lfi_calca %>%
+  group_by(Year)%>%
+  filter(length_bin > 10)%>%
+  summarise(lfi10 = sum(lfi))
+
+
+lfi_20<- lfi_calca %>%
+  group_by(Year)%>%
+  filter(length_bin > 20)%>%
+  summarise(lfi20 = sum(lfi)) 
+
+lfi_30<- lfi_calca %>%
+  group_by(Year)%>%
+  filter(length_bin > 30)%>%
+  summarise(lfi30 = sum(lfi)) 
+
+lfi_40<- lfi_calca %>%
+  group_by(Year)%>%
+  filter(length_bin > 40)%>%
+  summarise(lfi40 = sum(lfi)) 
+
+lfi_50<- lfi_calca %>%
+  group_by(Year)%>%
+  filter(length_bin > 50)%>%
+  summarise(lfi50 = sum(lfi)) 
+
+lfiperyear <- lfi_calca %>% group_by(Year) %>% summarise(lfitot= sum(lfi))  
+
+lfi_10 <- left_join(lfi_10,lfiperyear) 
+lfi_20 <- left_join(lfi_20,lfiperyear)     
+lfi_30 <- left_join(lfi_30,lfiperyear) 
+lfi_40 <- left_join(lfi_40,lfiperyear) 
+lfi_50 <- left_join(lfi_50,lfiperyear) 
+
+lfi_10$lfi10 <- lfi_10$lfi10/lfi_10$lfitot
+lfi_20$lfi20 <- lfi_20$lfi20/lfi_20$lfitot
+lfi_30$lfi30 <- lfi_30$lfi30/lfi_30$lfitot
+lfi_40$lfi40 <- lfi_40$lfi40/lfi_40$lfitot
+lfi_50$lfi50 <- lfi_50$lfi50/lfi_50$lfitot
+
+lfi_timeseries <- left_join(lfi_10,lfi_20)
+lfi_timeseries <- left_join(lfi_timeseries,lfi_30)
+lfi_timeseries <- left_join(lfi_timeseries,lfi_40)
+lfi_timeseries <- left_join(lfi_timeseries,lfi_50)
+
+lfi_timeseries <- subset(lfi_timeseries, select = -lfitot) 
+lfi_timeseries <- melt(lfi_timeseries, id="Year")
+
+ggplot(data=lfi_timeseries,
+       aes(x=Year, y=value, colour=variable)) +
+  geom_line()
+
+model10 <- lm(lfi_10$lfi10 ~ poly(lfi_10$Year,5))
+
+summary(model10)
+
+model20 <- lm(lfi_20$lfi20 ~ poly(lfi_20$Year,5))
+
+summary(model20)
+
+model30 <- lm(lfi_30$lfi30 ~ poly(lfi_30$Year,5))
+
+summary(model30)
+
+model40 <- lm(lfi_40$lfi40 ~ poly(lfi_40$Year,5))
+
+summary(model40)
+
+model50 <- lm(lfi_50$lfi50 ~ poly(lfi_50$Year,5))
+
+summary(model50)
+
+#best is lfi when Llf = 50!, but maybe taking into account p-values, 
+#residuals and dg might be better Llf = 40? 
+
+ggplot(data=lfi_50,
+       aes(x=Year, y=lfi50)) +
+  geom_point()+geom_line()
+
+ggplot(data=lfi_10,
+       aes(x=Year, y=lfi10)) +
+  geom_point()+geom_line()
+ggplot(data=lfi_20,
+       aes(x=Year, y=lfi20)) +
+  geom_point()+geom_line()
+ggplot(data=lfi_30,
+       aes(x=Year, y=lfi30)) +
+  geom_point()+geom_line()
+ggplot(data=lfi_40,
+       aes(x=Year, y=lfi40)) +
+  geom_point()+geom_line()
+# Test the function
+my_summary(df1, 1)
 
 
 

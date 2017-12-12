@@ -584,53 +584,20 @@ q
 
 #remove also the small ones?
 
-bit2 <- bits %>%
-  group_by(Year) 
 
-##HERE
-
-bits2$Netopening[is.na(bits2$Netopening)] = mean(bits2$Netopening, na.rm=TRUE)
+##this substitutes NAs with the mean of all years...
 
 
-bits2 <-  bits[!is.na(bits$Netopening),]  
+bits$Netopening[is.na(bits$Netopening)] <- round(mean(bits$Netopening, na.rm = TRUE))
 
-bits2$MeanNetopening <- bits2%>%
-  group_by(Year)%>%
-  mean(bits2$Netopening)
-  
-p <- ggplot(bits, aes(Distance, Distance2))
-q<- p + geom_point() 
-q
-
-#subsitute NAs in Distance for this calculation
-
-bits <- transform(bits, Distance = ifelse(!is.na(Distance), Distance, Distance2))
-
-sum(is.na(bits$Distance))
-# one oulier here, out?
+sum(is.na(bits$Netopening))
 
 p <- ggplot(bits, aes(Netopening, Year))
 q<- p + geom_point() 
 q
 
-p <- ggplot(bits, aes(Distance, Year))
-q<- p + geom_point() 
-q
-
-
-#Still 26HF and HAF have very low values of Netopening, what to do with these?
-
-#mean Netopening per ship and year shitttHEREEE
-
-#temp <- aggregate(bits$Netopening,
-#          list(Ship = bits$Ship, Year= bits$Year),
-#          mean)
-
-#there are too many ships with missing data, what to do?
-
-p <- ggplot(bits, aes(DoorSpread, Ship)) #also here, same data I think
-q<- p + geom_point() 
-q
+#graphs change far too much, 
+#but still the selected time series is for Llf = 40
 
 bits$sweptarea <- bits$Netopening*bits$Distance
 
@@ -638,19 +605,8 @@ bits$WgtAtLngt <- bits$IndWgt*bits$HLNoAtLngt
 
 bits$biomdens <- bits$WgtAtLngt/bits$sweptarea
 
-#trying to find more informative graphs
-
-p <- ggplot(bits, aes(LngtClass, biomdens, color = Species))
-q<- p + geom_point() 
-r<- q + facet_grid(Species ~ Year)
-r
 
 #in order not to have to run all this everytime:
-
-save(bits, file = "bits.RData")
-
-load("bits.RData")
-#create different LFI for different L<sub>LF from 10 to 50
 
 
 # ahhhhh!!!
@@ -674,21 +630,6 @@ bits <- bits %>%
 bits2 <-  bits[!is.na(bits$biomdens),]  
 
 
-#lfi_all <- data.frame(matrix(ncol = 6, nrow = 26 ))
-
-#colnames(lfi_all)<- c("Year","lfi10","lfi20","lfi30","lfi40","lfi50")
-
-#lfi_all$Year <- unique(bits$Year, na.rm =TRUE)
-
-#lfi_all$lfi10 <- bits %>%
-#    group_by(Year)%>%
-#    filter(bits$length_bin >10) %>%
-#    sum(biomdens)
-
-#lfi_all$lfi10 <- bits %>% 
-#  group_by(Year) %>%
-#  sum(bits$biomdens, na.rm =TRUE)
-#
 
 lfi_calca <-bits2 %>%
   group_by(Year, length_bin) %>%

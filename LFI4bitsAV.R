@@ -186,7 +186,9 @@ p <- ggplot(bits, aes(DoorSpread, Ship))
 q<- p + geom_point() 
 q
 
-# one oulier here, out?
+# REMOVE TOO LARGE AND TOO SMALL
+bits$DoorSpread[bits$DoorSpread > 400] <- NA
+bits$DoorSpread[bits$DoorSpread < 10] <- NA
 
 p <- ggplot(bits, aes(Netopening, Year))
 q<- p + geom_point() 
@@ -195,6 +197,14 @@ q
 p <- ggplot(bits, aes(Distance, Year))
 q<- p + geom_point() 
 q
+
+
+
+#in order not to have to run all this everytime:
+
+save(bits, file = "bits.RData")
+
+load("bits.RData")
 
 
 #Still 26HF and HAF have very low values of Netopening, what to do with these?
@@ -207,10 +217,7 @@ q
 
 #there are too many ships with missing data, what to do?
 
-p <- ggplot(bits, aes(DoorSpread, Ship)) #also here, same data I think
-q<- p + geom_point() 
-q
-  
+
 bits$sweptarea <- bits$Netopening*bits$Distance
 
 bits$WgtAtLngt <- bits$IndWgt*bits$HLNoAtLngt
@@ -224,11 +231,6 @@ q<- p + geom_point()
 r<- q + facet_grid(Species ~ Year)
 r
 
-#in order not to have to run all this everytime:
-
-save(bits, file = "bits.RData")
-
-load("bits.RData")
 #create different LFI for different L<sub>LF from 10 to 50
 
 
@@ -236,43 +238,27 @@ load("bits.RData")
 
   bits <- bits %>%
     mutate(length_bin = case_when(
-      LngtClass > 0.00 &
-        LngtClass <= 10.00 ~ 10,
-      LngtClass > 11.00 & 
-            LngtClass <= 20.00 ~ 20,
-      LngtClass > 21.00 &
-        LngtClass <= 30.00 ~ 30,
-      LngtClass > 31.00 &
-        LngtClass <= 40.00 ~ 40,
-      LngtClass > 41.00 &
-        LngtClass <= 50.00 ~ 50,
-      LngtClass >51.00 ~ 60,
+      LngtClass > 0 &
+        LngtClass <= 10 ~ 10,
+      LngtClass > 10 & 
+            LngtClass <= 20 ~ 20,
+      LngtClass > 20 &
+        LngtClass <= 30 ~ 30,
+      LngtClass > 30 &
+        LngtClass <= 40 ~ 40,
+      LngtClass > 40 &
+        LngtClass <= 50 ~ 50,
+      LngtClass >50 ~ 60,
       TRUE ~ NA_real_))
 
 
 sum(is.na(bits$length_bin))
 sum(is.na(bits$LngtClass))
+sum(is.na(bits$Distance))
+sum(is.na(bits$Netopening))
 
-summary(bits$LngtClass)
-
-bits2 <-  bits[!is.na(bits$biomdens),]  
-  
-  
-#lfi_all <- data.frame(matrix(ncol = 6, nrow = 26 ))
-                        
-#colnames(lfi_all)<- c("Year","lfi10","lfi20","lfi30","lfi40","lfi50")
-
-#lfi_all$Year <- unique(bits$Year, na.rm =TRUE)
-  
-#lfi_all$lfi10 <- bits %>%
-#    group_by(Year)%>%
-#    filter(bits$length_bin >10) %>%
-#    sum(biomdens)
-  
-#lfi_all$lfi10 <- bits %>% 
-#  group_by(Year) %>%
-#  sum(bits$biomdens, na.rm =TRUE)
-  #
+bits2 <-  bits[!is.na(bits$biomdens),]  #bits=14306, bits2=8821 (because of netopening nas)
+    #
 
 lfi_calca <-bits2 %>%
   group_by(Year, length_bin) %>%
@@ -370,28 +356,19 @@ ggplot(data=lfi_30,
 ggplot(data=lfi_40,
        aes(x=Year, y=lfi40)) +
   geom_point()+geom_line()
-# Test the function
-my_summary(df1, 1)
-
-
-
-write.csv(lfi, file = "LFI.csv")
-
 
 #better
 
 #########################################
 #december 12: with DoorSpread instead of NetOpening:
 #################################################
-sum(is.na(bits$DoorSpread)) #5725, even more
+
+sum(is.na(bits$DoorSpread)) #5801, even more
 
 p <- ggplot(bits, aes(DoorSpread, Ship))
 q<- p + geom_point() 
 q
 
-# one oulier here, out?
-
-bits$DoorSpread[bits$DoorSpread > 400] <- NA
 
 p <- ggplot(bits, aes(Distance, Year))
 q<- p + geom_point() 
@@ -406,8 +383,6 @@ q<- p + geom_point()
 q
 
 #also small numbers should be substituted by NAs, How small?
-
-bits$DoorSpread[bits$DoorSpread < 10] <- NA
 
 
 bits$sweptarea <- bits$DoorSpread*bits$Distance
@@ -428,15 +403,15 @@ bits <- bits %>%
   mutate(length_bin = case_when(
     LngtClass > 0 &
       LngtClass <= 10 ~ 10,
-    LngtClass > 11 & 
+    LngtClass > 10 & 
       LngtClass <= 20 ~ 20,
-    LngtClass > 21 &
+    LngtClass > 20 &
       LngtClass <= 30 ~ 30,
-    LngtClass > 31 &
+    LngtClass > 30 &
       LngtClass <= 40 ~ 40,
-    LngtClass > 41 &
+    LngtClass > 40 &
       LngtClass <= 50 ~ 50,
-    LngtClass >51 ~ 60,
+    LngtClass >50 ~ 60,
     TRUE ~ NA_real_))
 
 
@@ -523,7 +498,6 @@ model50 <- lm(lfi_50$lfi50 ~ poly(lfi_50$Year,5))
 summary(model50)
 
 
-
 ggplot(data=lfi_50,
        aes(x=Year, y=lfi50)) +
   geom_point()+geom_line()
@@ -540,14 +514,12 @@ ggplot(data=lfi_30,
 ggplot(data=lfi_40,
        aes(x=Year, y=lfi40)) +
   geom_point()+geom_line()
-# Test the function
-my_summary(df1, 1)
 
 
 
 
 #######################################
-#substituting NAs of Netopening with mean of the year
+#substituting NAs of DoorSpread with mean of the year
 ############################################################
 
 
@@ -573,19 +545,6 @@ q
 #remove also the small ones?
 
 
-##this substitutes NAs with the mean of all years...
-
-
-bits$Netopening[is.na(bits$Netopening)] <- round(mean(bits$Netopening, na.rm = TRUE))
-
-sum(is.na(bits$Netopening))
-
-p <- ggplot(bits, aes(Netopening, Year))
-q<- p + geom_point() 
-q
-
-#graphs change far too much, 
-#but still the selected time series is for Llf = 40
 
 #I will try to change NAs in Netopening(or DoorSpread) 
 #with something more "real"
@@ -616,21 +575,21 @@ bits <- bits %>%
   mutate(length_bin = case_when(
     LngtClass > 0 &
       LngtClass <= 10 ~ 10,
-    LngtClass > 11 & 
+    LngtClass > 10 & 
       LngtClass <= 20 ~ 20,
-    LngtClass > 21 &
+    LngtClass > 20 &
       LngtClass <= 30 ~ 30,
-    LngtClass > 31 &
+    LngtClass > 30 &
       LngtClass <= 40 ~ 40,
-    LngtClass > 41 &
+    LngtClass > 40 &
       LngtClass <= 50 ~ 50,
-    LngtClass >51 ~ 60,
+    LngtClass >50 ~ 60,
     TRUE ~ NA_real_))
 
 
-bits <-  bits[!is.na(bits2$biomdens),]  
+bits <-  bits[!is.na(bits$biomdens),]  
 
-lfi_calca <- bits %>%       #what´s wrong with this now??!!
+lfi_calca <- bits %>%      
   group_by(Year, length_bin) %>%
   summarise(lfi = sum(biomdens))
 
@@ -707,9 +666,7 @@ model50 <- lm(lfi_50$lfi50 ~ poly(lfi_50$Year,5))
 
 summary(model50)
 
-#best is lfi when Llf = 50!, but maybe taking into account p-values, 
-#residuals and dg might be better Llf = 40? 
-
+#best is lfi when Llf = 40
 ggplot(data=lfi_50,
        aes(x=Year, y=lfi50)) +
   geom_point()+geom_line()

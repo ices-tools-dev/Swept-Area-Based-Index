@@ -522,29 +522,13 @@ ggplot(data=lfi_40,
 #substituting NAs of DoorSpread with mean of the year
 ############################################################
 
-
-sum(is.na(bits$Netopening)) #5410, a bit too much
-
-p <- ggplot(bits, aes(Netopening, Ship))
+p <- ggplot(bits, aes(DoorSpread, Ship))
 q<- p + geom_point() 
 q
-#2 outliers in DAN2 I will transform them to NA
-
-bits$Netopening[bits$Netopening > 25] <- NA
-
-sum(is.na(bits$Netopening)) #5410, a bit too much
-
-p <- ggplot(bits, aes(Netopening, Ship))
-q<- p + geom_point() 
-q
-
-p <- ggplot(bits, aes(Netopening, Year))
-q<- p + geom_point() 
-q
-
 #remove also the small ones?
-
-
+p <- ggplot(bits, aes(DoorSpread, Year))
+q<- p + geom_point() 
+q
 
 #I will try to change NAs in Netopening(or DoorSpread) 
 #with something more "real"

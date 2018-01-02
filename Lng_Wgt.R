@@ -1,4 +1,3 @@
-
 #Purpose: to get sensible measures of IndWgt by LengthClass for each species,
 #as in FR-CGFS and SWC-IBTS there are no IndWgt values at all!!
 #Author: Adriana Villamor, December 2017
@@ -24,10 +23,10 @@ ca_nsibts <- ca_nsibts[ ,-1]
 all<- ca_nsibts
 
 all <- left_join(all, 
-          speclist %>% 
-          select(Key, 
-          Description),
-          by = c("Valid_Aphia" = "Key")) %>%
+                 speclist %>% 
+                   select(Key, 
+                          Description),
+                 by = c("Valid_Aphia" = "Key")) %>%
   rename(Species = Description)
 
 ##Define species list includded in the LFI calculation
@@ -41,7 +40,7 @@ all <- all%>%
   filter(Species %in% LFIspecies)
 
 all<-rbind(all%>%filter(LngtCode%in%c(".", "0"))%>%mutate(LngtClass=LngtClass/10),
-               all%>%filter(!LngtCode%in%c(".", "0")))
+           all%>%filter(!LngtCode%in%c(".", "0")))
 
 all[all == -9] <- NA
 
@@ -52,7 +51,7 @@ all[all == Inf] <- NA
 #so I decided to fit only species and year.
 
 alllm <- all %>% 
-  group_by(Species, Year)%>%
+  group_by(Species, Country,Year)%>%
   filter(!is.na(IndWgt), IndWgt > 0) %>%
   do(lm = lm(log(IndWgt) ~ log(LngtClass), data = ., 
              singular.ok = T, 
@@ -62,7 +61,7 @@ alllm <- all %>%
 alllm <- alllm %>% 
   tidy(lm)
 alllm <- alllm %>% select(term,
-  estimate) %>% 
+                          estimate) %>% 
   spread(term, estimate)%>%
   rename(intercept = `(Intercept)`, 
          slope = `log(LngtClass)`)
@@ -144,9 +143,14 @@ sum(is.na(bits$IndWgt))
 sum(is.na(bits$Netopening))
 sum(is.na(bits$DoorSpread))
 
-#calculate biomdens 
+#calculate biomdens, should remove logs!! 
 bits$IndWgt <- bits$slope*bits$LngtClass+bits$intercept
 bits$WgAtLngt <- bits$IndWgt*bits$HLNoAtLngt
+
+plot(bits$DoorSpread, bits$Netopening)
+
+#should do something with Netopening and DoorSpread...
+
 
 #I use Netopening because DoorSpread is almost NAs
 #but this is probably an issue
@@ -491,7 +495,7 @@ ggplot(droplevels(all[is.na(all$IndWgt)==FALSE, ]), aes(x=LngtClass, y=IndWgt))+
 # work out random part first
 
 g1 <- gamm4(IndWgt~s(LngtClass, by=Species),
-           data=all, na.action=na.omit)
+            data=all, na.action=na.omit)
 
 ##booo
 

@@ -46,12 +46,15 @@ all[all == -9] <- NA
 
 all[all == Inf] <- NA
 
+plot(all$LngtClass, all$IndWgt)
+plot(log(all$LngtClass), log(all$IndWgt))
+
 #althought the distribution of the slopes looks better with, species, 
-#country and year, I lost so many year data that the >LFI time series remain short. 
+#country and year, I lost so many year data that the >LFI time series remains short. 
 #so I decided to fit only species and year.
 
 alllm <- all %>% 
-  group_by(Species, Country,Year)%>%
+  group_by(Species, Year)%>%
   filter(!is.na(IndWgt), IndWgt > 0) %>%
   do(lm = lm(log(IndWgt) ~ log(LngtClass), data = ., 
              singular.ok = T, 
@@ -72,16 +75,16 @@ alllm%>%ggplot(aes(slope))+geom_histogram()+facet_wrap(~Species,scales = "free")
 
 #now, test this parameters in the FR-CGFS survey
 
-hh_bits <- getDATRAS(record = "HH", "FR-CGFS", years = 1988:2017, quarters = 4)
+hh_cgfs <- getDATRAS(record = "HH", "FR-CGFS", years = 1988:2017, quarters = 4)
 
-hl_bits <- getDATRAS(record = "HL", "FR-CGFS", years = 1988:2017, quarters = 4)
+hl_cgfs <- getDATRAS(record = "HL", "FR-CGFS", years = 1988:2017, quarters = 4)
 
-ca_bits<-getDATRAS(record="CA",survey =  "FR-CGFS", years = 1988:2017, quarters = 4)
+ca_cgfs<-getDATRAS(record="CA",survey =  "FR-CGFS", years = 1988:2017, quarters = 4)
 
 speclist <- getCodeList("SpecWoRMS")
 
 
-hl_bits <- left_join(hl_bits, 
+hl_cgfs <- left_join(hl_cgfs, 
                      speclist %>% 
                        select(Key, 
                               Description),
@@ -90,7 +93,7 @@ hl_bits <- left_join(hl_bits,
 
 
 
-ca_bits <- left_join(ca_bits, 
+ca_cgfs <- left_join(ca_cgfs, 
                      speclist %>% 
                        select(Key, 
                               Description),
@@ -104,50 +107,78 @@ LFIspecies<- c("Gadus morhua",
                "Scophthalmus maximus",
                "Merlangius merlangus")
 
-ca_bits <- ca_bits%>%
+ca_cgfs <- ca_cgfs%>%
   filter(Species %in% LFIspecies)
-hl_bits <- hl_bits%>%
+hl_cgfs <- hl_cgfs%>%
   filter(Species %in% LFIspecies)
 
 # Transform LngtClass with LngtCode "." and "0" to cm!
 
-ca_bits<-rbind(ca_bits%>%filter(LngtCode%in%c(".", "0"))%>%mutate(LngtClass=LngtClass/10),
-               ca_bits%>%filter(!LngtCode%in%c(".", "0")))
+ca_cgfs<-rbind(ca_cgfs%>%filter(LngtCode%in%c(".", "0"))%>%mutate(LngtClass=LngtClass/10),
+               ca_cgfs%>%filter(!LngtCode%in%c(".", "0")))
 
-hl_bits<-rbind(hl_bits%>%filter(LngtCode%in%c(".", "0"))%>%mutate(LngtClass=LngtClass/10),
-               hl_bits%>%filter(!LngtCode%in%c(".", "0")))
+hl_cgfs<-rbind(hl_cgfs%>%filter(LngtCode%in%c(".", "0"))%>%mutate(LngtClass=LngtClass/10),
+               hl_cgfs%>%filter(!LngtCode%in%c(".", "0")))
 
 # Change -9 values to NA
 
-ca_bits[ca_bits == -9] <- NA
+ca_cgfs[ca_cgfs == -9] <- NA
 
-ca_bits[ca_bits == Inf] <- NA
+ca_cgfs[ca_cgfs == Inf] <- NA
 
-hl_bits <- hl_bits[ ,-1]  
-hh_bits <- hh_bits[ ,-1]        
+hl_cgfs <- hl_cgfs[ ,-1]  
+hh_cgfs <- hh_cgfs[ ,-1]        
 
-bits <- left_join(hl_bits, ca_bits)
+cgfs <- left_join(hl_cgfs, ca_cgfs)
 
 #only valid and Day hauls
-bits <- left_join(bits, hh_bits) %>%
+cgfs <- left_join(cgfs, hh_cgfs) %>%
   filter( DayNight =="D",HaulVal =="V")
 
 # better this: dat <-  dat %>% mutate(x = replace(x, x<0, NA))
 
-bits[bits == -9] <- NA
+cgfs[cgfs == -9] <- NA
 
 #Put the parameters together
 
-bits <- left_join(bits, alllm)
-sum(is.na(bits$IndWgt))
-sum(is.na(bits$Netopening))
-sum(is.na(bits$DoorSpread))
+cgfs <- left_join(cgfs, alllm)
+sum(is.na(cgfs$IndWgt))
+sum(is.na(cgfs$Netopening))
+sum(is.na(cgfs$DoorSpread))
+
+plot(cgfs$Netopening, cgfs$DoorSpread)
+plot(cgfs$Netopening, log(cgfs$DoorSpread))
+
+#regression to get DoorSpread from Netopening:
+cgfslm <- cgfs %>% 
+  filter(!is.na(DoorSpread), DoorSpread > 0) %>%
+  filter(!is.na(Netopening), Netopening > 0)
+  do(lm = lm(log(Netopening) ~ log(DoorSpread), data = ., 
+             singular.ok = T, 
+             na.action = na.exclude))
+
+##Get the coefficients
+cgfslm <- cgfslm %>% 
+  tidy(lm)
+cgfslm <- cgfslm %>% select(term,
+                          estimate) %>% 
+  spread(term, estimate)%>%
+  rename(intercept = `(Intercept)`, 
+         slope = `log(Netopening)`)
+
+##Plot slopes distribution
+cgfslm%>%ggplot(aes(slope))+geom_histogram()+facet_wrap(~Year,scales = "free")
+
+#This is not working, don´t know why...continue down
+
 
 #calculate biomdens, should remove logs!! 
-bits$IndWgt <- bits$slope*bits$LngtClass+bits$intercept
-bits$WgAtLngt <- bits$IndWgt*bits$HLNoAtLngt
 
-plot(bits$DoorSpread, bits$Netopening)
+cgfs$logIndWgt <- cgfs$intercept+cgfs$slope*log(cgfs$LngtClass)
+cgfs$IndWgt <- 10^(cgfs$logIndWgt)
+cgfs$WgAtLngt <- cgfs$IndWgt*cgfs$HLNoAtLngt
+
+plot(cgfs$DoorSpread, cgfs$Netopening)
 
 #should do something with Netopening and DoorSpread...
 
@@ -155,13 +186,13 @@ plot(bits$DoorSpread, bits$Netopening)
 #I use Netopening because DoorSpread is almost NAs
 #but this is probably an issue
 
-bits$sweptarea <- bits$Distance*bits$Netopening
+cgfs$sweptarea <- cgfs$Distance*cgfs$Netopening
 
-bits$biomdens <- bits$WgAtLngt/bits$sweptarea
+cgfs$biomdens <- cgfs$WgAtLngt/cgfs$sweptarea
 
 #create different LFI time series for different L<sub>LF from 20 to 50 cm
 
-bits <- bits %>%
+cgfs <- cgfs %>%
   mutate(length_bin = case_when(
     LngtClass > 0 &
       LngtClass <= 20 ~ 20,
@@ -174,14 +205,14 @@ bits <- bits %>%
     LngtClass >50 ~ 60,
     TRUE ~ NA_real_))
 
-bits <-  bits[!is.na(bits$biomdens),]  
+cgfs <-  cgfs[!is.na(cgfs$biomdens),]  
 
 #all this calculates the different time series of LFI= (B  for L > L<sub> lf)/Btotal
 # for each value of L<sub>lf from 20 to 50
 # probably I could make it nicer with some loops and functions,
 #but it seems to work ;-)
 
-lfi_calc <-bits %>%
+lfi_calc <-cgfs %>%
   group_by(Year, length_bin) %>%
   summarise(lfi = sum(biomdens))
 
@@ -267,18 +298,39 @@ ggplot(data=lfi_50,
 
 #check with SWC-IBTS
 
-#now, test this parameters in the FR-CGFS survey
+#now, test this parameters in the SWC-IBTS survey
+#I tried to use the parameters by country, but at the end the regressions 
+#are not significant, probably because variability is so small (?).
 
-hh_bits <- getDATRAS(record = "HH", "SWC-IBTS", years = 1985:2017, quarters = 1)
+alllm <- all %>% 
+  group_by(Species, Year)%>%
+  filter(!is.na(IndWgt), IndWgt > 0) %>%
+  do(lm = lm(log(IndWgt) ~ log(LngtClass), data = ., 
+             singular.ok = T, 
+             na.action = na.exclude))
 
-hl_bits <- getDATRAS(record = "HL", "SWC-IBTS", years = 1985:2017, quarters = 1)
+##Get the coefficients
+alllm <- alllm %>% 
+  tidy(lm)
+alllm <- alllm %>% select(term,
+                          estimate) %>% 
+  spread(term, estimate)%>%
+  rename(intercept = `(Intercept)`, 
+         slope = `log(LngtClass)`)
 
-ca_bits<-getDATRAS(record="CA",survey =  "SWC-IBTS", years = 1985:2017, quarters = 1)
+
+
+
+hh_ibts <- getDATRAS(record = "HH", "SWC-IBTS", years = 1985:2017, quarters = 1)
+
+hl_ibts <- getDATRAS(record = "HL", "SWC-IBTS", years = 1985:2017, quarters = 1)
+
+ca_ibts<-getDATRAS(record="CA",survey =  "SWC-IBTS", years = 1985:2017, quarters = 1)
 
 speclist <- getCodeList("SpecWoRMS")
 
 
-hl_bits <- left_join(hl_bits, 
+hl_ibts <- left_join(hl_ibts, 
                      speclist %>% 
                        select(Key, 
                               Description),
@@ -287,7 +339,7 @@ hl_bits <- left_join(hl_bits,
 
 
 
-ca_bits <- left_join(ca_bits, 
+ca_ibts <- left_join(ca_ibts, 
                      speclist %>% 
                        select(Key, 
                               Description),
@@ -301,61 +353,62 @@ LFIspecies<- c("Gadus morhua",
                "Scophthalmus maximus",
                "Merlangius merlangus")
 
-ca_bits <- ca_bits%>%
+ca_ibts <- ca_ibts%>%
   filter(Species %in% LFIspecies)
-hl_bits <- hl_bits%>%
+hl_ibts <- hl_ibts%>%
   filter(Species %in% LFIspecies)
 
 # Transform LngtClass with LngtCode "." and "0" to cm!
 
-ca_bits<-rbind(ca_bits%>%filter(LngtCode%in%c(".", "0"))%>%mutate(LngtClass=LngtClass/10),
-               ca_bits%>%filter(!LngtCode%in%c(".", "0")))
+ca_ibts<-rbind(ca_ibts%>%filter(LngtCode%in%c(".", "0"))%>%mutate(LngtClass=LngtClass/10),
+               ca_ibts%>%filter(!LngtCode%in%c(".", "0")))
 
-hl_bits<-rbind(hl_bits%>%filter(LngtCode%in%c(".", "0"))%>%mutate(LngtClass=LngtClass/10),
-               hl_bits%>%filter(!LngtCode%in%c(".", "0")))
+hl_ibts<-rbind(hl_ibts%>%filter(LngtCode%in%c(".", "0"))%>%mutate(LngtClass=LngtClass/10),
+               hl_ibts%>%filter(!LngtCode%in%c(".", "0")))
 
 # Change -9 values to NA
 
-ca_bits[ca_bits == -9] <- NA
+ca_ibts[ca_ibts == -9] <- NA
 
-ca_bits[ca_bits == Inf] <- NA
+ca_ibts[ca_ibts == Inf] <- NA
 
-hl_bits <- hl_bits[ ,-1]  
-hh_bits <- hh_bits[ ,-1]        
+hl_ibts <- hl_ibts[ ,-1]  
+hh_ibts <- hh_ibts[ ,-1]        
 
-bits <- left_join(hl_bits, ca_bits)
+ibts <- left_join(hl_ibts, ca_ibts)
 
 #only valid and Day hauls
-bits <- left_join(bits, hh_bits) %>%
+ibts <- left_join(ibts, hh_ibts) %>%
   filter( DayNight =="D",HaulVal =="V")
 
 # better this: dat <-  dat %>% mutate(x = replace(x, x<0, NA))
 
-bits[bits == -9] <- NA
+ibts[ibts == -9] <- NA
 
 #Put the parameters together
 
-bits <- left_join(bits, alllm)
-sum(is.na(bits$IndWgt))
-sum(is.na(bits$Netopening))
-sum(is.na(bits$DoorSpread))
+ibts <- left_join(ibts, alllm)
+sum(is.na(ibts$IndWgt))
+sum(is.na(ibts$Netopening))
+sum(is.na(ibts$DoorSpread))
 
-plot(bits$DoorSpread, bits$Netopening)
+plot(ibts$DoorSpread, ibts$Netopening)
+plot(log(ibts$DoorSpread), log(ibts$Netopening))
 
 #calculate biomdens 
-bits$IndWgt <- bits$slope*bits$LngtClass+bits$intercept
-bits$WgAtLngt <- bits$IndWgt*bits$HLNoAtLngt
+ibts$logIndWgt <- ibts$intercept+ibts$slope*log(ibts$LngtClass)
+ibts$IndWgt <- 10^(ibts$logIndWgt)
+ibts$WgAtLngt <- ibts$IndWgt*ibts$HLNoAtLngt
 
-#I use Netopening because DoorSpread is almost NAs
-#but this is probably an issue
+#In this survey there are enough data on DoosSpread, so i use it
 
-bits$sweptarea <- bits$Distance*bits$DoorSpread
+ibts$sweptarea <- ibts$Distance*ibts$DoorSpread
 
-bits$biomdens <- bits$WgAtLngt/bits$sweptarea
+ibts$biomdens <- ibts$WgAtLngt/ibts$sweptarea
 
 #create different LFI time series for different L<sub>LF from 20 to 50 cm
 
-bits <- bits %>%
+ibts <- ibts %>%
   mutate(length_bin = case_when(
     LngtClass > 0 &
       LngtClass <= 20 ~ 20,
@@ -368,14 +421,14 @@ bits <- bits %>%
     LngtClass >50 ~ 60,
     TRUE ~ NA_real_))
 
-bits <-  bits[!is.na(bits$biomdens),]  
+ibts <-  ibts[!is.na(ibts$biomdens),]  
 
 #all this calculates the different time series of LFI= (B  for L > L<sub> lf)/Btotal
 # for each value of L<sub>lf from 20 to 50
 # probably I could make it nicer with some loops and functions,
 #but it seems to work ;-)
 
-lfi_calc <-bits %>%
+lfi_calc <-ibts %>%
   group_by(Year, length_bin) %>%
   summarise(lfi = sum(biomdens))
 
@@ -424,7 +477,7 @@ ggplot(data=lfi_timeseries,
 
 #Fitting a 5th degree polynomial finction to each LFI time series 
 
-# too few data!, model does not run
+
 
 model20 <- lm(lfi_20$lfi20 ~ poly(lfi_20$Year,5))
 
@@ -442,7 +495,7 @@ model50 <- lm(lfi_50$lfi50 ~ poly(lfi_50$Year,5))
 
 summary(model50)
 
-#lfi when llf is 30
+#lfi when llf is 20
 
 ggplot(data=lfi_20,
        aes(x=Year, y=lfi20)) +
@@ -456,6 +509,8 @@ ggplot(data=lfi_40,
 ggplot(data=lfi_50,
        aes(x=Year, y=lfi50)) +
   geom_point()+geom_line()
+
+
 
 
 #other approaches:

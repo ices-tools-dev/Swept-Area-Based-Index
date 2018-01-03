@@ -105,7 +105,7 @@ ca_btslm%>%group_by(Year, Species)%>%summarise(medianslope=(median(slope, na.rm 
   ggplot(aes(Year, medianslope,color=Species))+geom_line(size=1)+scale_color_brewer(palette = "Dark2")+theme_bw()
 
 
-#regression seems quite fine, merging the three pieces together
+
 #only valid and Day hauls
 
 hl_bts <- hl_bts[ ,-1]  
@@ -120,7 +120,7 @@ bts <- bts %>%filter( DayNight == "D", IndWgt > 0, HaulVal =="V")
 # better this: dat <-  dat %>% mutate(x = replace(x, x<0, NA))
 bts[bts == -9] <- NA
 
-sum(is.na(bts$Distance)) #2195 out of 14300
+sum(is.na(bts$Distance)) #28336 out of 53679
 
 # Calculate distance in kilometers between two points
 earth_distance <- function (long1, lat1, long2, lat2) {
@@ -156,7 +156,9 @@ plot(bts$Distance, bts$Year)
 
 bts <- bts[!bts$Distance > 15000, ]
 
+sum(is.na(bts$DoorSpread))
 sum(is.na(bts$Netopening)) 
+
 
 #I will add values of Beam Trawl length by country according to Annex 1 of 
 #http://ices.dk/marine-data/Documents/DATRAS%20Manuals/WGBEAM_Manual.pdf

@@ -150,24 +150,24 @@ plot(cgfs$Netopening, cgfs$DoorSpread)
 plot(cgfs$Netopening, log(cgfs$DoorSpread))
 
 #regression to get DoorSpread from Netopening:
-cgfslm <- cgfs %>% 
-  filter(!is.na(DoorSpread), DoorSpread > 0) %>%
-  filter(!is.na(Netopening), Netopening > 0)
-  do(lm = lm(log(Netopening) ~ log(DoorSpread), data = ., 
-             singular.ok = T, 
-             na.action = na.exclude))
+#cgfslm <- cgfs %>% 
+#  filter(!is.na(DoorSpread), DoorSpread > 0) %>%
+#  filter(!is.na(Netopening), Netopening > 0)
+#  do(lm = lm(log(Netopening) ~ log(DoorSpread), data = ., 
+ #            singular.ok = T, 
+ #            na.action = na.exclude))
 
 ##Get the coefficients
-cgfslm <- cgfslm %>% 
-  tidy(lm)
-cgfslm <- cgfslm %>% select(term,
-                          estimate) %>% 
-  spread(term, estimate)%>%
-  rename(intercept = `(Intercept)`, 
-         slope = `log(Netopening)`)
+#cgfslm <- cgfslm %>% 
+#  tidy(lm)
+#cgfslm <- cgfslm %>% select(term,
+#                          estimate) %>% 
+#  spread(term, estimate)%>%
+#  rename(intercept = `(Intercept)`, 
+#         slope = `log(Netopening)`)
 
 ##Plot slopes distribution
-cgfslm%>%ggplot(aes(slope))+geom_histogram()+facet_wrap(~Year,scales = "free")
+#cgfslm%>%ggplot(aes(slope))+geom_histogram()+facet_wrap(~Year,scales = "free")
 
 #This is not working, don´t know why...continue down
 

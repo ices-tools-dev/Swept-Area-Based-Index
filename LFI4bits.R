@@ -170,7 +170,7 @@ bits$DoorSpread[bits$DoorSpread < 10] <- NA
 
 #Calculations of Biomass at length per km2
 
-bits$sweptarea <- bits$Netopening*bits$Distance
+bits$sweptarea <- bits$DoorSpread*bits$Distance
 
 bits$WgtAtLngt <- bits$IndWgt*bits$HLNoAtLngt
 

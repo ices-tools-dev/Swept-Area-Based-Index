@@ -124,6 +124,10 @@ bits <- left_join(bits, hh_bits) %>%
 bits[bits == -9] <- NA
 
 sum(is.na(bits$Distance)) #2195 out of 14300
+sum(is.na(bits$IndWgt))
+sum(is.na(bits$LngtClass))
+sum(is.na(bits$DoorSpread))
+sum(is.na(bits$Netopening))
 
 # Calculate distance with the coordinates
 earth_distance <- function (long1, lat1, long2, lat2) {
@@ -279,3 +283,5 @@ ggplot(data=lfi_50,
        aes(x=Year, y=lfi50)) +
   geom_point()+geom_line()
 
+#if the missing values of distance are not calculated, the result remains the same, 
+#quite consistent, I would say

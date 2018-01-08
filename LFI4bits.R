@@ -25,8 +25,6 @@ library(reshape2)
 # Download data #
 #~~~~~~~~~~~~~~~#
 
-#From 1993 to 2007, almost all data are cod, after that all 5 species are present, 
-#should not be a problem right?
 
 hh_bits <- getDATRAS(record = "HH", "BITS", years = 1991:2017, quarters = 1)
 
@@ -123,6 +121,7 @@ bits <- left_join(bits, hh_bits) %>%
 
 bits[bits == -9] <- NA
 
+
 sum(is.na(bits$Distance)) #2195 out of 14300
 sum(is.na(bits$IndWgt))
 sum(is.na(bits$LngtClass))
@@ -171,6 +170,15 @@ bits <- bits[!bits$Distance > 20000, ]
 bits <- bits[!bits$DoorSpread > 600, ]
 bits$DoorSpread[bits$DoorSpread < 10] <- NA
 
+bits%>% ggplot(aes(DoorSpread,Ship) )+geom_point()
+bits%>% ggplot(aes(DoorSpread,Distance) )+geom_point()
+
+#The amount of DoorSpread = 50 is kind of weird, to what is it due?
+
+bits%>% ggplot(aes(Distance,HaulNo) )+geom_point()
+bits%>% ggplot(aes(Distance,CatCatchWgt) )+geom_point()
+
+#Outlier of CatCatchWgt > 3e06?
 
 #Calculations of Biomass at length per km2
 
@@ -179,6 +187,24 @@ bits$sweptarea <- bits$DoorSpread*bits$Distance
 bits$WgtAtLngt <- bits$IndWgt*bits$HLNoAtLngt
 
 bits$biomdens <- bits$WgtAtLngt/bits$sweptarea
+
+bits%>% ggplot(aes(Year,WgtAtLngt) )+geom_point()+facet_wrap(~Species)
+
+#Before 2008 only cod is fished. Following Colin´s suggestion I will calculate
+#the time series from then, so all species are present
+
+bits <- bits %>%
+  filter (Year>2008)
+
+#Note: if I filter >2007, results change quite a bit, double think on this
+
+#plot the data to check for weird things
+
+#Check Duration and distance of hauls:
+bits%>% ggplot(aes(HaulNo,HaulDur) )+geom_point()+facet_wrap(~Year)
+
+bits%>% ggplot(aes(Distance,HaulDur) )+geom_point()+facet_wrap(~Year)
+
 
 #create different LFI time series for different L<sub>LF from 20 to 50 cm
 

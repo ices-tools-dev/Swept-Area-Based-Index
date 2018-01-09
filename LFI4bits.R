@@ -171,9 +171,11 @@ bits <- bits[!bits$DoorSpread > 600, ]
 bits$DoorSpread[bits$DoorSpread < 10] <- NA
 
 bits%>% ggplot(aes(DoorSpread,Ship) )+geom_point()
+#is everything ok here or the lower values are too low?
 bits%>% ggplot(aes(DoorSpread,Distance) )+geom_point()
 
 #The amount of DoorSpread = 50 is kind of weird, to what is it due?
+#Too big distances are suspicious?
 
 bits%>% ggplot(aes(Distance,HaulNo) )+geom_point()
 bits%>% ggplot(aes(Distance,CatCatchWgt) )+geom_point()
@@ -190,8 +192,10 @@ bits$biomdens <- bits$WgtAtLngt/bits$sweptarea
 
 bits%>% ggplot(aes(Year,WgtAtLngt) )+geom_point()+facet_wrap(~Species)
 
-#Before 2008 only cod is fished. Following Colin´s suggestion I will calculate
+
+#Before 2008 only cod is fished. Following Colin?s suggestion I will calculate
 #the time series from then, so all species are present
+# or two LFI? one for Cod, with a long time series and another one for the rest?
 
 bits <- bits %>%
   filter (Year>2008)

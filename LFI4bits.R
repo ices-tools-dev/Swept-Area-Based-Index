@@ -77,53 +77,84 @@ ca_bits[ca_bits == -9] <- NA
 
 ca_bits[ca_bits == Inf] <- NA
 
+hl_bits[hl_bits == -9] <- NA
+
+hl_bits[hl_bits == Inf] <- NA
+
+#need to remove common columns, "RecordType" and "DateofCalculation"
+
+ca_bits <- ca_bits %>% select(-(RecordType)) %>% select(-(DateofCalculation))  
+hh_bits <- hh_bits %>% select(-(RecordType)) %>% select(-(DateofCalculation))
+
+bits <- left_join(hl_bits, ca_bits)
+
+
+bits <- left_join(bits, hh_bits)%>%
+  filter( DayNight =="D",HaulVal =="V")
+
+#plotting data to check outliers
+sum(is.na(bits$IndWgt))
+bits%>% ggplot(aes(IndWgt,LngtClass) )+geom_point()
+Outl1 <- bits %>% filter(IndWgt> 7500)
+
+sum(is.na(bits$LngtClass))
+bits%>% ggplot(aes(LngtClass, Year) )+geom_point()+ facet_wrap(~Species,scales = "free")
+bits%>% ggplot(aes(LngtClass, HLNoAtLngt) )+geom_point()+ facet_wrap(~Species,scales = "free")
+#select the last top quarter for check, PENDING
+bits%>% ggplot(aes(CatCatchWgt, Year) )+geom_point()+ facet_wrap(~Species,scales = "free")
+#same, select upper third for check, PENDING
+sum(is.na(bits$DoorSpread))
+bits%>% ggplot(aes(DoorSpread,HaulNo) )+geom_point()
+Outl2 <- bits %>% filter(DoorSpread > 300)
+
+bits%>% ggplot(aes(Ship,CatCatchWgt) )+geom_point()+ facet_wrap(~Year,scales = "free")
+bits%>% ggplot(aes(HaulNo,CatCatchWgt) )+geom_point()+ facet_wrap(~Year,scales = "free")
+
+
 
 ##To check relation between length and weight, fit the linear models
-ca_bitslm <- ca_bits %>% 
-  group_by(Country, Ship, Year, Gear,Species)%>%
-  filter(!is.na(IndWgt), IndWgt > 0) %>%
+#If I use Year, Species, Country and Gear, I will only fit ca 50000 missing values
+#If I fit by Species and year, I fit 120000 missing values
+#but still only cod goes further down than 2007
+#Species, Country and Gear improves a bit the time series 
+#fitting only by species gives back the whole time series for all 5 species
+#Colin?
+
+
+bitslm <- bits %>%
+  group_by(Species)%>%
+  filter(!is.na(IndWgt), IndWgt > 0, IndWgt < 7500) %>%
   do(lm = lm(log(IndWgt) ~ log(LngtClass), data = ., 
              singular.ok = T, 
              na.action = na.exclude))
 
 ##Get the coefficients
-ca_bitslm <- ca_bitslm %>% 
+bitslm <- bitslm %>% 
   tidy(lm)
-ca_bitslm <- ca_bitslm %>% select(term,
+bitslm <- bitslm %>% select(term,
                                   estimate) %>% 
   spread(term, estimate)%>%
   rename(intercept = `(Intercept)`, 
          slope = `log(LngtClass)`)
 
 ##Plot slopes distribution
-ca_bitslm%>%ggplot(aes(slope))+geom_histogram()+facet_wrap(~Species,scales = "free")
 
-#Only Platichthys flesus seems to have more spread slopes, but should be ok
-
-ca_bitslm%>%group_by(Year, Species)%>%summarise(medianslope=(median(slope, na.rm = T)))%>%
-  ggplot(aes(Year, medianslope,color=Species))+geom_line(size=1)+scale_color_brewer(palette = "Dark2")+theme_bw()
-
-
-#regression seems quite fine, merging the three pieces together
-
-#need to remove a common column
-
-hl_bits <- hl_bits[ ,-1]  
-hh_bits <- hh_bits[ ,-1]        
-
-bits <- left_join(hl_bits, ca_bits)
-
-#only valid and Day hauls
-bits <- left_join(bits, hh_bits) %>%
-  filter( DayNight =="D", IndWgt > 0 ,HaulVal =="V")
+bitslm%>%ggplot(aes(slope))+geom_histogram()+facet_wrap(~Species,scales = "free")
+#nothing to see when fitting only by Species
 
 # better this: dat <-  dat %>% mutate(x = replace(x, x<0, NA))
 
 bits[bits == -9] <- NA
 
 
-sum(is.na(bits$Distance)) #2195 out of 14300
-sum(is.na(bits$IndWgt))
+sum(is.na(bits$Distance)) #96189 out of 349839
+bits%>% ggplot(aes(Distance,DoorSpread) )+geom_point()
+#for ouliers also distance > 70000
+ 
+bits$Distance[bits$Distance > 7000] <- NA
+bits$DoorSpread[bits$DoorSpread > 300] <- NA
+bits$IndWgt[bits$IndWgt > 7500] <- NA
+
 sum(is.na(bits$LngtClass))
 sum(is.na(bits$DoorSpread))
 sum(is.na(bits$Netopening))
@@ -151,24 +182,27 @@ bits$Distance2 <- 1000*(earth_distance(bits$ShootLong, bits$ShootLat, bits$HaulL
 bits <- transform(bits, Distance = ifelse(!is.na(Distance), Distance, Distance2))
 
 sum(is.na(bits$Distance))
-sum(is.na(bits$Distance2))  #572 out of 14300, is that ok? 
+sum(is.na(bits$Distance2))   
 
 
 p <- ggplot(bits, aes(Distance, Year))
 q<- p + geom_point() 
 q
 
+bits$Distance[bits$Distance > 10000] <- NA
+
+p <- ggplot(bits, aes(Distance, Year))
+q<- p + geom_point() 
+q
+
+bits$Distance[bits$Distance < 10] <- NA
+
 p <- ggplot(bits, aes(DoorSpread, Year))
 q<- p + geom_point() 
 q
 
-#remove outliers, up to where? 
-#should I remove also Distances and DoorSpread lower than some value? 
-#what do you think would be a good lower limit? 
-
-bits <- bits[!bits$Distance > 20000, ]
-bits <- bits[!bits$DoorSpread > 600, ]
 bits$DoorSpread[bits$DoorSpread < 10] <- NA
+
 
 bits%>% ggplot(aes(DoorSpread,Ship) )+geom_point()
 #is everything ok here or the lower values are too low?
@@ -180,35 +214,39 @@ bits%>% ggplot(aes(DoorSpread,Distance) )+geom_point()
 bits%>% ggplot(aes(Distance,HaulNo) )+geom_point()
 bits%>% ggplot(aes(Distance,CatCatchWgt) )+geom_point()
 
-#Outlier of CatCatchWgt > 3e06?
+
+sum(is.na(bits$IndWgt))
+bits <- left_join(bits, bitslm)
+bits$logIndWgt <- bits$intercept+bits$slope*log(bits$LngtClass)
+bits$IndWgtFit <- 10^(bits$logIndWgt)
+bits <- transform(bits, IndWgt = ifelse(!is.na(IndWgt), IndWgt, IndWgtFit))
+
+sum(is.na(bits$IndWgt))
+bits%>% ggplot(aes(LngtClass,IndWgt) )+geom_point()
+
+bits%>% ggplot(aes(Year,HLNoAtLngt) )+geom_point()+ facet_wrap(~Species,scales = "free")
+
+# there are a few crazy numbers, but I leave them all as possible, will check with submitter PENDING
+bits$WgAtLngt <- bits$IndWgt*bits$HLNoAtLngt
 
 #Calculations of Biomass at length per km2
 
 bits$sweptarea <- bits$DoorSpread*bits$Distance
 
-bits$WgtAtLngt <- bits$IndWgt*bits$HLNoAtLngt
+bits$biomdens <- bits$WgAtLngt/bits$sweptarea
 
-bits$biomdens <- bits$WgtAtLngt/bits$sweptarea
+bits%>% ggplot(aes(Year,WgAtLngt) )+geom_point()+facet_wrap(~Species)
+# I will assume that is a crazy value:
+bits$WgAtLngt[bits$WgAtLngt > 40] <- NA
+bits%>% ggplot(aes(Year,biomdens) )+geom_point()+facet_wrap(~Species)
 
-bits%>% ggplot(aes(Year,WgtAtLngt) )+geom_point()+facet_wrap(~Species)
-
-
-#Before 2008 only cod is fished. Following Colin?s suggestion I will calculate
-#the time series from then, so all species are present
-# or two LFI? one for Cod, with a long time series and another one for the rest?
-
-bits <- bits %>%
-  filter (Year>2008)
-
-#Note: if I filter >2007, results change quite a bit, double think on this
-
-#plot the data to check for weird things
 
 #Check Duration and distance of hauls:
-bits%>% ggplot(aes(HaulNo,HaulDur) )+geom_point()+facet_wrap(~Year)
 
 bits%>% ggplot(aes(Distance,HaulDur) )+geom_point()+facet_wrap(~Year)
+#some weird points here and there, but I will keep them by now
 
+bits%>% ggplot(aes(Year,biomdens) )+geom_point()+facet_wrap(~Species)
 
 #create different LFI time series for different L<sub>LF from 20 to 50 cm
 
@@ -295,10 +333,9 @@ summary(model40)
 
 model50 <- lm(lfi_50$lfi50 ~ poly(lfi_50$Year,5))
 
-#Error in poly(lfi_50$Year, 5) : 
-#'degree' must be less than number of unique points
+summary(model50)
 
-#best fit is lfi when Llf = 40 very close to Llf = 30
+#model40 and model50 give same results, check!
 
 ggplot(data=lfi_20,
        aes(x=Year, y=lfi20)) +
@@ -313,5 +350,4 @@ ggplot(data=lfi_50,
        aes(x=Year, y=lfi50)) +
   geom_point()+geom_line()
 
-#if the missing values of distance are not calculated, the result remains the same, 
-#quite consistent, I would say
+

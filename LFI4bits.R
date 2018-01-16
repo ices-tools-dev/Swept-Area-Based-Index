@@ -97,12 +97,47 @@ sum(is.na(bits$IndWgt))
 bits%>% ggplot(aes(IndWgt,LngtClass) )+geom_point()
 Outl1 <- bits %>% filter(IndWgt> 7500)
 
+write.csv(Outl1, "DATRASoutliers.csv")
+
 sum(is.na(bits$LngtClass))
 bits%>% ggplot(aes(LngtClass, Year) )+geom_point()+ facet_wrap(~Species,scales = "free")
 bits%>% ggplot(aes(LngtClass, HLNoAtLngt) )+geom_point()+ facet_wrap(~Species,scales = "free")
-#select the last top quarter for check, PENDING
+
+#select the last top quarter for check, 
+
+#bits2 <- bits[!is.na(bits$HLNoAtLngt),]
+#bits2 <- bits2%>%
+#  group_by(Species)
+#n <- 2
+#out2 <- bits2[bits2$HLNoAtLngt > quantile(bits2$HLNoAtLngt,prob=1-n/100),]
+
+#Any of these is doing what I want!!
+
+#out2 <- bits2 %>% group_by(Species) %>%filter(HLNoAtLngt > quantile(bits2$HLNoAtLngt, 0.98))
+#out2%>% ggplot(aes(LngtClass, HLNoAtLngt) )+geom_point()+ facet_wrap(~Species,scales = "free")         
+
+Outl <- bits %>% filter(Species == "Gadus morhua", HLNoAtLngt> 4000)
+Outl <- bits %>% filter(Species == "Merlangius merlangus", HLNoAtLngt> 1000)
+Outl <- bits %>% filter(Species == "Platichthys flesus", HLNoAtLngt> 4000)
+Outl <- bits %>% filter(Species == "Pleuronectes platessa", HLNoAtLngt> 200)
+
 bits%>% ggplot(aes(CatCatchWgt, Year) )+geom_point()+ facet_wrap(~Species,scales = "free")
 #same, select upper third for check, PENDING
+Outl <- bits %>% filter(Species == "Gadus morhua", CatCatchWgt > 4e+06)
+Outl <- Outl[!duplicated(Outl[c("Country", "Year", "Gear", "HaulNo")]),] 
+
+Outl <- bits %>% filter(Species == "Merlangius merlangus", CatCatchWgt> 5e+05)
+Outl <- Outl[!duplicated(Outl[c("Country", "Year", "Gear", "HaulNo")]),]
+
+Outl <- bits %>% filter(Species == "Platichthys flesus", CatCatchWgt> 2500000)
+Outl <- Outl[!duplicated(Outl[c("Country", "Year", "Gear", "HaulNo")]),]
+
+Outl <- bits %>% filter(Species == "Pleuronectes platessa", CatCatchWgt> 3e+05)
+Outl <- Outl[!duplicated(Outl[c("Country", "Year", "Gear", "HaulNo")]),]
+
+Outl <- bits %>% filter(Species == "Scophthalmus maximus", CatCatchWgt > 20000)
+Outl <- Outl[!duplicated(Outl[c("Country", "Year", "Gear", "HaulNo")]),]
+
 sum(is.na(bits$DoorSpread))
 bits%>% ggplot(aes(DoorSpread,HaulNo) )+geom_point()
 Outl2 <- bits %>% filter(DoorSpread > 300)

@@ -26,11 +26,11 @@ library(reshape2)
 #~~~~~~~~~~~~~~~#
 
 
-hh_bits <- getDATRAS(record = "HH", "BITS", years = 1991:2017, quarters = 1)
+hh_bits <- getDATRAS(record = "HH", "BITS", years = 1991:2017, quarters = 4)
 
-hl_bits <- getDATRAS(record = "HL", "BITS", years = 1991:2017, quarters = 1)
+hl_bits <- getDATRAS(record = "HL", "BITS", years = 1991:2017, quarters = 4)
 
-ca_bits<-getDATRAS(record="CA",survey =  "BITS", years = 1991:2017, quarters = 1)
+ca_bits<-getDATRAS(record="CA",survey =  "BITS", years = 1991:2017, quarters = 4)
 
 speclist <- getCodeList("SpecWoRMS")
 
@@ -95,7 +95,8 @@ bits <- left_join(bits, hh_bits)%>%
 #plotting data to check outliers
 sum(is.na(bits$IndWgt))
 bits%>% ggplot(aes(IndWgt,LngtClass) )+geom_point()
-Outl1 <- bits %>% filter(IndWgt> 7500)
+Outl1 <- bits %>% filter(IndWgt> 6000)
+# for Q1 Outl1 <- bits %>% filter(IndWgt> 7000)
 
 write.csv(Outl1, "DATRASoutliers.csv")
 
@@ -115,35 +116,68 @@ bits%>% ggplot(aes(LngtClass, HLNoAtLngt) )+geom_point()+ facet_wrap(~Species,sc
 
 #out2 <- bits2 %>% group_by(Species) %>%filter(HLNoAtLngt > quantile(bits2$HLNoAtLngt, 0.98))
 #out2%>% ggplot(aes(LngtClass, HLNoAtLngt) )+geom_point()+ facet_wrap(~Species,scales = "free")         
+Outl <- bits %>% filter(Species == "Gadus morhua", HLNoAtLngt> 5000)
+Outl <- bits %>% filter(Species == "Merlangius merlangus", HLNoAtLngt> 2000)
+Outl <- bits %>% filter(Species == "Platichthys flesus", HLNoAtLngt> 2000)
+Outl <- bits %>% filter(Species == "Pleuronectes platessa", HLNoAtLngt> 300)
 
-Outl <- bits %>% filter(Species == "Gadus morhua", HLNoAtLngt> 4000)
-Outl <- bits %>% filter(Species == "Merlangius merlangus", HLNoAtLngt> 1000)
-Outl <- bits %>% filter(Species == "Platichthys flesus", HLNoAtLngt> 4000)
-Outl <- bits %>% filter(Species == "Pleuronectes platessa", HLNoAtLngt> 200)
+#for Q1
+#Outl <- bits %>% filter(Species == "Gadus morhua", HLNoAtLngt> 4000)
+#Outl <- bits %>% filter(Species == "Merlangius merlangus", HLNoAtLngt> 1000)
+#Outl <- bits %>% filter(Species == "Platichthys flesus", HLNoAtLngt> 4000)
+#Outl <- bits %>% filter(Species == "Pleuronectes platessa", HLNoAtLngt> 200)
 
 bits%>% ggplot(aes(CatCatchWgt, Year) )+geom_point()+ facet_wrap(~Species,scales = "free")
-#same, select upper third for check, PENDING
+#same, select upper third for check, 
 Outl <- bits %>% filter(Species == "Gadus morhua", CatCatchWgt > 4e+06)
 Outl <- Outl[!duplicated(Outl[c("Country", "Year", "Gear", "HaulNo")]),] 
 
 Outl <- bits %>% filter(Species == "Merlangius merlangus", CatCatchWgt> 5e+05)
 Outl <- Outl[!duplicated(Outl[c("Country", "Year", "Gear", "HaulNo")]),]
 
-Outl <- bits %>% filter(Species == "Platichthys flesus", CatCatchWgt> 2500000)
+Outl <- bits %>% filter(Species == "Platichthys flesus", CatCatchWgt> 1500000)
+#Q1
+#Outl <- bits %>% filter(Species == "Platichthys flesus", CatCatchWgt> 2500000)
 Outl <- Outl[!duplicated(Outl[c("Country", "Year", "Gear", "HaulNo")]),]
 
 Outl <- bits %>% filter(Species == "Pleuronectes platessa", CatCatchWgt> 3e+05)
 Outl <- Outl[!duplicated(Outl[c("Country", "Year", "Gear", "HaulNo")]),]
 
-Outl <- bits %>% filter(Species == "Scophthalmus maximus", CatCatchWgt > 20000)
+Outl <- bits %>% filter(Species == "Scophthalmus maximus", CatCatchWgt > 30000)
+#Q1
+#Outl <- bits %>% filter(Species == "Scophthalmus maximus", CatCatchWgt > 20000)
 Outl <- Outl[!duplicated(Outl[c("Country", "Year", "Gear", "HaulNo")]),]
 
 sum(is.na(bits$DoorSpread))
 bits%>% ggplot(aes(DoorSpread,HaulNo) )+geom_point()
 Outl2 <- bits %>% filter(DoorSpread > 300)
+Outl2 <- Outl2[!duplicated(Outl2[c("Country", "Year", "Gear", "HaulNo")]),]
+bits$DoorSpread[bits$DoorSpread > 300] <- NA
+bits$DoorSpread[bits$DoorSpread == -9] <- NA
+bits%>% ggplot(aes(DoorSpread,HaulNo) )+geom_point()
+Outl2 <- bits %>% filter(DoorSpread == 50)
+Outl2 <- Outl2[!duplicated(Outl2[c("Country", "Year", "Gear", "HaulNo")]),]
+Outl2%>% ggplot(aes(Country, Year) )+geom_point()
+bits%>% ggplot(aes(DoorSpread,HaulNo) )+geom_point()+ facet_wrap(~Country)
+#Q1
+#Outl2 <- bits %>% filter(Country == "RUS")
+#Outl2 <- Outl2[!duplicated(Outl2[c("Year", "Gear", "HaulNo")]),]
 
 bits%>% ggplot(aes(Ship,CatCatchWgt) )+geom_point()+ facet_wrap(~Year,scales = "free")
+bits%>% ggplot(aes(Ship,CatCatchWgt) )+geom_point()+ facet_wrap(~Country,scales = "free")
+
 bits%>% ggplot(aes(HaulNo,CatCatchWgt) )+geom_point()+ facet_wrap(~Year,scales = "free")
+
+sum(is.na(bits$Distance)) #
+bits%>% ggplot(aes(Distance,DoorSpread) )+geom_point()+facet_wrap(~Country)
+bits%>% ggplot(aes(Distance,HaulNo) )+geom_point()+facet_wrap(~Country)
+#for ouliers also distance > 70000
+bits$DoorSpread[bits$DoorSpread == -9] <- NA
+
+Outl2 <- bits %>% filter(Distance> 10000) 
+#Q1
+#Outl2 <- bits %>% filter(Distance> 7000) 
+Outl2 <- Outl2[!duplicated(Outl2[c("Country", "Year", "Gear", "HaulNo")]),]
 
 
 
@@ -182,10 +216,7 @@ bitslm%>%ggplot(aes(slope))+geom_histogram()+facet_wrap(~Species,scales = "free"
 bits[bits == -9] <- NA
 
 
-sum(is.na(bits$Distance)) #96189 out of 349839
-bits%>% ggplot(aes(Distance,DoorSpread) )+geom_point()
-#for ouliers also distance > 70000
- 
+
 bits$Distance[bits$Distance > 7000] <- NA
 bits$DoorSpread[bits$DoorSpread > 300] <- NA
 bits$IndWgt[bits$IndWgt > 7500] <- NA

@@ -2,10 +2,10 @@ rm(list = ls())
 ####################
 # LFI for BITS #
 ####################
-# Purpose: To calculate swept area, length-weight parameters and best LFI time series
-# for BITS survey 
+# Purpose: To download data from DATRAS, clean data, calculate length-weight parameters,
+# and best LFI time series for BITS survey 
 # Authors: Scott Large, Szymon Smoliński and Adriana Villamor
-# Date: December 2017
+# Date: January 2018
 
 #~~~~~~~~~~~~~~~#
 # Load packages #
@@ -16,21 +16,21 @@ library(dplyr)
 library(tidyr)
 library(broom)
 library(ggplot2)
-#devtools::install_github("ices-tools-prod/icesVocab")
 library(icesVocab)
 library(reshape2)
-
+library(lubridate)
+library(gamm4)
 
 #~~~~~~~~~~~~~~~#
 # Download data #
 #~~~~~~~~~~~~~~~#
 
 
-hh_bits <- getDATRAS(record = "HH", "BITS", years = 1991:2017, quarters = 4)
+hh_bits <- getDATRAS(record = "HH", "BITS", years = 1991:2017, quarters = 1)
 
-hl_bits <- getDATRAS(record = "HL", "BITS", years = 1991:2017, quarters = 4)
+hl_bits <- getDATRAS(record = "HL", "BITS", years = 1991:2017, quarters = 1)
 
-ca_bits<-getDATRAS(record="CA",survey =  "BITS", years = 1991:2017, quarters = 4)
+ca_bits<-getDATRAS(record="CA",survey =  "BITS", years = 1991:2017, quarters = 1)
 
 speclist <- getCodeList("SpecWoRMS")
 
@@ -71,37 +71,47 @@ ca_bits<-rbind(ca_bits%>%filter(LngtCode%in%c(".", "0"))%>%mutate(LngtClass=Lngt
 hl_bits<-rbind(hl_bits%>%filter(LngtCode%in%c(".", "0"))%>%mutate(LngtClass=LngtClass/10),
                hl_bits%>%filter(!LngtCode%in%c(".", "0")))
 
-# Change -9 values to NA
 
-ca_bits[ca_bits == -9] <- NA
-
-ca_bits[ca_bits == Inf] <- NA
-
-hl_bits[hl_bits == -9] <- NA
-
-hl_bits[hl_bits == Inf] <- NA
-
-#need to remove common columns, "RecordType" and "DateofCalculation"
+#need to remove common columns, "RecordType" and "DateofCalculation" before merging
 
 ca_bits <- ca_bits %>% select(-(RecordType)) %>% select(-(DateofCalculation))  
 hh_bits <- hh_bits %>% select(-(RecordType)) %>% select(-(DateofCalculation))
 
 bits <- left_join(hl_bits, ca_bits)
 
-
+#Only valid and Day hauls
 bits <- left_join(bits, hh_bits)%>%
   filter( DayNight =="D",HaulVal =="V")
 
-#plotting data to check outliers
+#Substitute -9, and 0 by NA
 sum(is.na(bits$IndWgt))
-bits%>% ggplot(aes(IndWgt,LngtClass) )+geom_point()
-Outl1 <- bits %>% filter(IndWgt> 6000)
-# for Q1 Outl1 <- bits %>% filter(IndWgt> 7000)
-
-write.csv(Outl1, "DATRASoutliers.csv")
+bits$IndWgt[bits$IndWgt == 0] <- NA
+bits$IndWgt[bits$IndWgt == -9] <- NA
 
 sum(is.na(bits$LngtClass))
+bits$LngtClass[bits$LngtClass == 0] <- NA
+bits$LngtClass[bits$LngtClass == -9] <- NA
+
+bits$DoorSpread[bits$DoorSpread == -9] <- NA
+bits$DoorSpread[bits$DoorSpread == 0] <- NA
+
+bits$HLNoAtLngt[bits$HLNoAtLngt == -9] <- NA
+bits$HLNoAtLngt[bits$HLNoAtLngt == 0] <- NA
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# Plotting data to check and extract outliers #
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#
+
+#Extreme Individual Weights
+bits%>% ggplot(aes(IndWgt,LngtClass) )+geom_point()
+Outl <- bits %>% filter(IndWgt> 6000)
+# for Q1 Outl1 <- bits %>% filter(IndWgt> 7000)
+
+#Distribution of length classes by year
 bits%>% ggplot(aes(LngtClass, Year) )+geom_point()+ facet_wrap(~Species,scales = "free")
+
+#Number of individuals at length
 bits%>% ggplot(aes(LngtClass, HLNoAtLngt) )+geom_point()+ facet_wrap(~Species,scales = "free")
 
 #select the last top quarter for check, 
@@ -116,6 +126,8 @@ bits%>% ggplot(aes(LngtClass, HLNoAtLngt) )+geom_point()+ facet_wrap(~Species,sc
 
 #out2 <- bits2 %>% group_by(Species) %>%filter(HLNoAtLngt > quantile(bits2$HLNoAtLngt, 0.98))
 #out2%>% ggplot(aes(LngtClass, HLNoAtLngt) )+geom_point()+ facet_wrap(~Species,scales = "free")         
+
+#Check the top values with submitters to Datras
 Outl <- bits %>% filter(Species == "Gadus morhua", HLNoAtLngt> 5000)
 Outl <- bits %>% filter(Species == "Merlangius merlangus", HLNoAtLngt> 2000)
 Outl <- bits %>% filter(Species == "Platichthys flesus", HLNoAtLngt> 2000)
@@ -126,6 +138,7 @@ Outl <- bits %>% filter(Species == "Pleuronectes platessa", HLNoAtLngt> 300)
 #Outl <- bits %>% filter(Species == "Merlangius merlangus", HLNoAtLngt> 1000)
 #Outl <- bits %>% filter(Species == "Platichthys flesus", HLNoAtLngt> 4000)
 #Outl <- bits %>% filter(Species == "Pleuronectes platessa", HLNoAtLngt> 200)
+
 
 bits%>% ggplot(aes(CatCatchWgt, Year) )+geom_point()+ facet_wrap(~Species,scales = "free")
 #same, select upper third for check, 
@@ -148,82 +161,97 @@ Outl <- bits %>% filter(Species == "Scophthalmus maximus", CatCatchWgt > 30000)
 #Outl <- bits %>% filter(Species == "Scophthalmus maximus", CatCatchWgt > 20000)
 Outl <- Outl[!duplicated(Outl[c("Country", "Year", "Gear", "HaulNo")]),]
 
+
+#DoorSpread consistency and extreme values 
 sum(is.na(bits$DoorSpread))
 bits%>% ggplot(aes(DoorSpread,HaulNo) )+geom_point()
-Outl2 <- bits %>% filter(DoorSpread > 300)
-Outl2 <- Outl2[!duplicated(Outl2[c("Country", "Year", "Gear", "HaulNo")]),]
+Outl <- bits %>% filter(DoorSpread > 300)
+Outl <- Outl[!duplicated(Outl[c("Country", "Year", "Gear", "HaulNo")]),]
+#Only change to NA if confirmed it is an error, but now I use it to have closer look
 bits$DoorSpread[bits$DoorSpread > 300] <- NA
-bits$DoorSpread[bits$DoorSpread == -9] <- NA
-bits%>% ggplot(aes(DoorSpread,HaulNo) )+geom_point()
-Outl2 <- bits %>% filter(DoorSpread == 50)
-Outl2 <- Outl2[!duplicated(Outl2[c("Country", "Year", "Gear", "HaulNo")]),]
-Outl2%>% ggplot(aes(Country, Year) )+geom_point()
+
 bits%>% ggplot(aes(DoorSpread,HaulNo) )+geom_point()+ facet_wrap(~Country)
+
+#weird series of doorspread = 50
+Outl <- bits %>% filter(DoorSpread == 50)
+Outl <- Outl[!duplicated(Outl[c("Country", "Year", "Gear", "HaulNo")]),]
+
 #Q1
-#Outl2 <- bits %>% filter(Country == "RUS")
-#Outl2 <- Outl2[!duplicated(Outl2[c("Year", "Gear", "HaulNo")]),]
+#Outl <- bits %>% filter(Country == "RUS")
+#Outl <- Outl[!duplicated(Outl[c("Year", "Gear", "HaulNo")]),]
 
 bits%>% ggplot(aes(Ship,CatCatchWgt) )+geom_point()+ facet_wrap(~Year,scales = "free")
 bits%>% ggplot(aes(Ship,CatCatchWgt) )+geom_point()+ facet_wrap(~Country,scales = "free")
 
 bits%>% ggplot(aes(HaulNo,CatCatchWgt) )+geom_point()+ facet_wrap(~Year,scales = "free")
 
-sum(is.na(bits$Distance)) #
+sum(is.na(bits$Distance)) 
 bits%>% ggplot(aes(Distance,DoorSpread) )+geom_point()+facet_wrap(~Country)
 bits%>% ggplot(aes(Distance,HaulNo) )+geom_point()+facet_wrap(~Country)
-#for ouliers also distance > 70000
-bits$DoorSpread[bits$DoorSpread == -9] <- NA
 
-Outl2 <- bits %>% filter(Distance> 10000) 
+Outl <- bits %>% filter(Distance> 10000) 
 #Q1
-#Outl2 <- bits %>% filter(Distance> 7000) 
-Outl2 <- Outl2[!duplicated(Outl2[c("Country", "Year", "Gear", "HaulNo")]),]
+#Outl <- bits %>% filter(Distance> 7000) 
+Outl <- Outl[!duplicated(Outl[c("Country", "Year", "Gear", "HaulNo")]),]
 
-
-
-##To check relation between length and weight, fit the linear models
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# Fitting model for length-weight relationship#
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#
 #If I use Year, Species, Country and Gear, I will only fit ca 50000 missing values
 #If I fit by Species and year, I fit 120000 missing values
-#but still only cod goes further down than 2007
-#Species, Country and Gear improves a bit the time series 
-#fitting only by species gives back the whole time series for all 5 species
-#Colin?
+#but still only cod goes further down than 2007.
+#Fitting only by species gives back the whole time series for all 5 species, but
+#Following Colin's idea:
+#fitting a model that allows the slope and power (Wt = aL^b) to change with year, 
+#in a smooth way with yearly randomness about the smooth trend, by species
 
+plot(bits$IndWgt, bits$LngtClass)
+plot(log(bits$IndWgt), log(bits$LngtClass))
 
-bitslm <- bits %>%
-  group_by(Species)%>%
-  filter(!is.na(IndWgt), IndWgt > 0, IndWgt < 7500) %>%
-  do(lm = lm(log(IndWgt) ~ log(LngtClass), data = ., 
-             singular.ok = T, 
-             na.action = na.exclude))
+sum(is.na(bits$IndWgt)) #320466
 
-##Get the coefficients
-bitslm <- bitslm %>% 
-  tidy(lm)
-bitslm <- bitslm %>% select(term,
-                                  estimate) %>% 
-  spread(term, estimate)%>%
-  rename(intercept = `(Intercept)`, 
-         slope = `log(LngtClass)`)
+cod <-bits%>% 
+  filter(Species=="Gadus morhua")%>%
+  select(Year, Species, IndWgt, LngtClass)
+sum(is.na(cod$IndWgt))
 
-##Plot slopes distribution
+# cod is the data.frame with Individual weight, length and year.
+cod <- within(cod, {
+  fYear_a <- fYear_b <- factor(Year, levels = sort(unique(cod$Year)))
+  Year_a <- Year_b <- Year
+  #date = lubridate::ymd(paste(Year, Month, Day))
+  #yday = yday(date)
+})
 
-bitslm%>%ggplot(aes(slope))+geom_histogram()+facet_wrap(~Species,scales = "free")
-#nothing to see when fitting only by Species
+# fit the model
+gam(log(IndWgt) ~ 1 + s(fYear_a, bs = "re") + s(Year_a, k = 13) +
+            log(LngtClass) + s(fYear_b, by = log(LngtClass), bs = "re") +
+            s(Year_b, k = 13, by = log(LngtClass)),
+          data = cod, select = TRUE, family = gaussian(),
+          drop.unused.levels = FALSE)
 
-# better this: dat <-  dat %>% mutate(x = replace(x, x<0, NA))
+#year_k is the maximum degrees of freedom for the year smoothers,
+#I usually set this to half of the number of years that you have data.
+#You need to make a dataframe that has lots of copies of the year column 
+#because you are fitting lots of smoothers on year
 
-bits[bits == -9] <- NA
+#Plotting the Model
+plot(gam1) 
+#se stands for standard error Bands
 
+summary(gam1)
 
+cod2 <- cod
+cod2$IndWgt <-NA
 
-bits$Distance[bits$Distance > 7000] <- NA
-bits$DoorSpread[bits$DoorSpread > 300] <- NA
-bits$IndWgt[bits$IndWgt > 7500] <- NA
+pred <- predict(gam1, cod2)
 
-sum(is.na(bits$LngtClass))
-sum(is.na(bits$DoorSpread))
-sum(is.na(bits$Netopening))
+library(memisc)
+
+cod2 <- to.data.frame(pred, as.vars = 0,name="IndWgt2")
+cod <- merge(cod, cod2, all = TRUE)
+
 
 # Calculate distance with the coordinates
 earth_distance <- function (long1, lat1, long2, lat2) {

@@ -107,111 +107,114 @@ bits$GroundSpeed[bits$GroundSpeed == 0] <- NA
 bits$HaulDur[bits$HaulDur == -9] <- NA
 bits$HaulDur[bits$HaulDur == 0] <- NA
 
+bits$WingSpread[bits$WingSpread == -9] <- NA
+bits$WingSpread[bits$WingSpread == 0] <- NA
+
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # Plotting data to check and extract outliers #
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #
 
-#select data over the top 5% of the range of values for check,
+#select data over the top 85% of the range of values for check,
 
+#Outliers1: Extreme Individual Weights
+bits%>% ggplot(aes(IndWgt,LngtClass) )+geom_point(aes(colour= Country))+
+  facet_wrap(~Species,scales = "free")
 
+ggsave("outl1q4.tiff", units="in", width=5, height=4, dpi=300, compression = 'lzw')
 
-#Extreme Individual Weights
-bits%>% ggplot(aes(IndWgt,LngtClass) )+geom_point(aes(colour= Country))
-Outl <- bits %>% filter(IndWgt> 6000)
-# for Q1 Outl1 <- bits %>% filter(IndWgt> 7000)
+a <- bits %>% filter(Species == "Gadus morhua")
+b <- bits %>%filter(Species == "Merlangius merlangus")
+c <- bits %>%filter(Species == "Platichthys flesus")
+d <- bits %>% filter(Species == "Pleuronectes platessa")
+e <- bits %>% filter(Species == "Scophthalmus maximus")
+  
+Outl1a <- a %>% filter( IndWgt > max(a$IndWgt, na.rm=TRUE)*0.85)
+Outl1b <- b %>% filter( IndWgt > max(b$IndWgt, na.rm=TRUE)*0.85)
+Outl1c <- c %>% filter( IndWgt > max(c$IndWgt, na.rm=TRUE)*0.85)
+Outl1d <- d %>% filter( IndWgt > max(d$IndWgt, na.rm=TRUE)*0.85)
+Outl1e <- e %>% filter( IndWgt > max(e$IndWgt, na.rm=TRUE)*0.85)
 
 #Distribution of length classes by year
 bits%>% ggplot(aes(LngtClass, Year) )+geom_point(aes(colour= Country))+ 
     facet_wrap(~Species,scales = "free")
 
-#Number of individuals at length
+#Outliers2: Number of individuals at length
 bits%>% ggplot(aes(LngtClass, HLNoAtLngt) )+geom_point(aes(colour= Country))+ 
   facet_wrap(~Species,scales = "free")
 
-#bits %>% group_by(Species) %>%filter(HLNoAtLngt > quantile(bits$HLNoAtLngt, 0.98))
+ggsave("outl2q4.tiff", units="in", width=5, height=4, dpi=300, compression = 'lzw')
 
-#out2%>% ggplot(aes(LngtClass, HLNoAtLngt) )+geom_point()+ facet_wrap(~Species,scales = "free")         
-
-Outl<- bits%>%
-  group_by(Species)%>%
-  filter(HLNoAtLngt > (max(bits$HLNoAtLngt, na.rm=TRUE)*0.75))
-
-pla<- bits%>%
-  filter(Species =="Platichthys flesus")
-
-max(pla$HLNoAtLngt, na.rm=TRUE)*0.75
+Outl2a <- a %>% filter( HLNoAtLngt > max(a$HLNoAtLngt, na.rm=TRUE)*0.85)
+Outl2b <- b %>% filter( HLNoAtLngt > max(b$HLNoAtLngt, na.rm=TRUE)*0.85)
+Outl2c <- c %>% filter( HLNoAtLngt > max(c$HLNoAtLngt, na.rm=TRUE)*0.85)
+Outl2d <- d %>% filter( HLNoAtLngt > max(d$HLNoAtLngt, na.rm=TRUE)*0.85)
+Outl2e <- e %>% filter( HLNoAtLngt > max(e$HLNoAtLngt, na.rm=TRUE)*0.85)
 
 
-#Check the top values with submitters to Datras
-Outl <- bits %>% filter(Species == "Gadus morhua", HLNoAtLngt > 
-                          (max(bits$HLNoAtLngt, na.rm=TRUE)*0.75))
-Outl <- bits %>% filter(Species == "Merlangius merlangus", HLNoAtLngt > 
-                          (max(bits$HLNoAtLngt, na.rm=TRUE)*0.75))
-Outl <- bits %>% filter(Species == "Platichthys flesus", HLNoAtLngt > 
-                          (max(bits$HLNoAtLngt, na.rm=TRUE)*0.75))
-Outl <- bits %>% filter(Species == "Pleuronectes platessa", HLNoAtLngt > 
-                          (max(bits$HLNoAtLngt, na.rm=TRUE)*0.75))
+#Outliers3: CatCatchWeight
+bits%>% ggplot(aes(CatCatchWgt, Year) )+geom_point(aes(colour= Country))+
+  facet_wrap(~Species,scales = "free")
 
-#for Q1
-#Outl <- bits %>% filter(Species == "Gadus morhua", HLNoAtLngt> 4000)
-#Outl <- bits %>% filter(Species == "Merlangius merlangus", HLNoAtLngt> 1000)
-#Outl <- bits %>% filter(Species == "Platichthys flesus", HLNoAtLngt> 4000)
-#Outl <- bits %>% filter(Species == "Pleuronectes platessa", HLNoAtLngt> 200)
+ggsave("outl3q4.tiff", units="in", width=5, height=4, dpi=300, compression = 'lzw')
 
-Outl<- bits%>%
-  group_by(Species)%>%
-  filter(CatCatchWgt > (max(bits$CatCatchWgt, na.rm=TRUE)*0.75))
-
-
-bits%>% ggplot(aes(CatCatchWgt, Year) )+geom_point(aes(colour= Country))+ facet_wrap(~Species,scales = "free")
 #same, select upper third for check, 
-Outl <- bits %>% filter(Species == "Gadus morhua", CatCatchWgt > 4e+06)
-Outl <- Outl[!duplicated(Outl[c("Country", "Year", "Gear", "HaulNo")]),] 
+Outl3a <- a %>% filter(CatCatchWgt > max(a$CatCatchWgt, na.rm=TRUE)*0.85)
+Outl3a <- Outl3a[!duplicated(Outl3a[c("Country", "Year", "Gear", "HaulNo")]),] 
 
-Outl <- bits %>% filter(Species == "Merlangius merlangus", CatCatchWgt> 5e+05)
-Outl <- Outl[!duplicated(Outl[c("Country", "Year", "Gear", "HaulNo")]),]
+Outl3b <- b %>% filter(CatCatchWgt > max(b$CatCatchWgt, na.rm=TRUE)*0.85)
+Outl3b <- Outl3b[!duplicated(Outl3b[c("Country", "Year", "Gear", "HaulNo")]),]
 
-Outl <- bits %>% filter(Species == "Platichthys flesus", CatCatchWgt> 1500000)
-#Q1
-#Outl <- bits %>% filter(Species == "Platichthys flesus", CatCatchWgt> 2500000)
-Outl <- Outl[!duplicated(Outl[c("Country", "Year", "Gear", "HaulNo")]),]
+Outl3c <- c %>% filter(CatCatchWgt > max(c$CatCatchWgt, na.rm=TRUE)*0.85)
+Outl3c <- Outl3c[!duplicated(Outl3c[c("Country", "Year", "Gear", "HaulNo")]),]
 
-Outl <- bits %>% filter(Species == "Pleuronectes platessa", CatCatchWgt> 3e+05)
-Outl <- Outl[!duplicated(Outl[c("Country", "Year", "Gear", "HaulNo")]),]
+Outl3d <- d %>% filter(CatCatchWgt > max(d$CatCatchWgt, na.rm=TRUE)*0.85)
+Outl3d <- Outl3d[!duplicated(Outl3d[c("Country", "Year", "Gear", "HaulNo")]),]
 
-Outl <- bits %>% filter(Species == "Scophthalmus maximus", CatCatchWgt > 30000)
-#Q1
-#Outl <- bits %>% filter(Species == "Scophthalmus maximus", CatCatchWgt > 20000)
-Outl <- Outl[!duplicated(Outl[c("Country", "Year", "Gear", "HaulNo")]),]
+Outl3e <- e %>% filter(CatCatchWgt > max(e$CatCatchWgt, na.rm=TRUE)*0.85)
+Outl3e <- Outl3e[!duplicated(Outl3e[c("Country", "Year", "Gear", "HaulNo")]),]
 
 
-#DoorSpread consistency and extreme values 
+#Outliers4: DoorSpread consistency and extreme values 
 sum(is.na(bits$DoorSpread))
 bits%>% ggplot(aes(DoorSpread,HaulNo) )+geom_point(aes(colour= Country))
-Outl <- bits %>% filter(DoorSpread > 300)
-Outl <- Outl[!duplicated(Outl[c("Country", "Year", "Gear", "HaulNo")]),]
-#Only change to NA if confirmed it is an error, but now I use it to have closer look
-bits$DoorSpread[bits$DoorSpread > 300] <- NA
+
+
+Outl4a <- bits %>% filter(DoorSpread > max(bits$DoorSpread, na.rm=TRUE)*0.85)
+Outl4a <- Outl4a[!duplicated(Outl4a[c("Country", "Year", "Gear", "HaulNo")]),]
+
+sum(is.na(bits$WingSpread))
+bits%>% ggplot(aes(WingSpread,HaulNo) )+geom_point(aes(colour= Country))
+ggsave("outl6q1.tiff", units="in", width=5, height=4, dpi=300, compression = 'lzw')
+bits%>% ggplot(aes(WingSpread,DoorSpread) )+geom_point(aes(colour= Country))
+
+
+#Something here for wingspread, poland and estonia, wrong
+
+
 
 bits%>% ggplot(aes(DoorSpread,HaulNo) )+geom_point()+ facet_wrap(~Country)
+ggsave("outl4q4.tiff", units="in", width=5, height=4, dpi=300, compression = 'lzw')
 
-#weird series of doorspread = 50
-Outl <- bits %>% filter(DoorSpread == 50)
-Outl <- Outl[!duplicated(Outl[c("Country", "Year", "Gear", "HaulNo")]),]
+#weird series of doorspread = 50 in Pol and also in RUS
+Outl4b <- bits %>% filter(Country =="POL", DoorSpread == 50)
+Outl4b <- Outl4b[!duplicated(Outl4b[c("Country", "Year", "Gear", "HaulNo")]),]
+Outl4c <- bits %>% filter(Country =="RUS", DoorSpread == c(68,70))
+Outl4c <- Outl4c[!duplicated(Outl4c[c("Country", "Year", "Gear", "HaulNo")]),]
 
-#Q1
-#Outl <- bits %>% filter(Country == "RUS")
-#Outl <- Outl[!duplicated(Outl[c("Year", "Gear", "HaulNo")]),]
 
 bits%>% ggplot(aes(Ship,CatCatchWgt) )+geom_point()+ facet_wrap(~Year,scales = "free")
 bits%>% ggplot(aes(Ship,CatCatchWgt) )+geom_point()+ facet_wrap(~Country,scales = "free")
 
 bits%>% ggplot(aes(HaulNo,CatCatchWgt) )+geom_point()+ facet_wrap(~Year,scales = "free")
 
+#Outliers5: Distance
 sum(is.na(bits$Distance)) 
-bits%>% ggplot(aes(Distance,DoorSpread) )+geom_point()+facet_wrap(~Country)
 bits%>% ggplot(aes(Distance,HaulNo) )+geom_point()+facet_wrap(~Country)
+ggsave("outl5q4.tiff", units="in", width=5, height=4, dpi=300, compression = 'lzw')
+
+Outl5a <- bits %>% filter(Distance > max(bits$Distance, na.rm=TRUE)*0.85)
+Outl5a <- Outl5a[!duplicated(Outl5a[c("Country", "Year", "Gear", "HaulNo")]),]
 
 # Calculate distance with the coordinates
 earth_distance <- function (long1, lat1, long2, lat2) {
@@ -229,22 +232,52 @@ earth_distance <- function (long1, lat1, long2, lat2) {
   return(d)
 }
 
-bits$Distance2 <- 1000*(earth_distance(bits$ShootLong, bits$ShootLat, bits$HaulLong, bits$HaulLat))
-bits%>% ggplot(aes(Distance,Distance2) )+geom_point()+facet_wrap(~Country)
+#library(rworldmap)
+#newmap <- getMap(resolution = "low")
+#plot(newmap, xlim = c(8, 25), ylim = c(53, 66), asp = 1)
+#points(bits$ShootLong, bits$ShootLat, col = "red", cex = .6)
+#points(bits$HaulLong, bits$HaulLat, col = "blue", cex = .6)
 
-bits%>% ggplot(aes(Distance,HaulDur) )+geom_point()+facet_wrap(~Country)
+
+bits$Distance2 <- earth_distance(bits$HaulLong, bits$HaulLat,bits$ShootLong, bits$ShootLat)
+
+bits%>% ggplot(aes(Distance,Distance2) )+geom_point()+facet_wrap(~Country)
+#The coordinates are wrong in most cases, they give distance = 0
+# can´t be used to calculate distance,
+
+ggsave("outl6q1.tiff", units="in", width=5, height=4, dpi=300, compression = 'lzw')
+
 bits%>% ggplot(aes(Distance,GroundSpeed) )+geom_point()+facet_wrap(~Country)
+
+#Distance, speed, duration checks
+
+bits%>% ggplot(aes(Distance,(HaulDur*GroundSpeed)))+geom_point()+facet_wrap(~Country)
+bits%>% ggplot(aes(GroundSpeed, HaulNo))+geom_point()+facet_wrap(~Country)
+ggsave("outl7q1.tiff", units="in", width=5, height=4, dpi=300, compression = 'lzw')
+
+bits%>% ggplot(aes(HaulDur, HaulNo))+geom_point()+facet_wrap(~Country)
+bits%>% ggplot(aes(HaulDur, Distance))+geom_point()+facet_wrap(~Country)
+#I think this outliers in Denmark are the same as before
 
 #In a simple world, distance should be linear with Groundspeed*HaulDur
 
 bits%>% ggplot(aes(Distance,(HaulDur*GroundSpeed)))+geom_point()+facet_wrap(~Country)
 
-#double check, but I think I get these outliers with the distance
+#merge all outliers and export excel
 
-Outl <- bits %>% filter(Distance> 10000) 
-#Q1
-#Outl <- bits %>% filter(Distance> 7000) 
-Outl <- Outl[!duplicated(Outl[c("Country", "Year", "Gear", "HaulNo")]),]
+outliers1 <- rbind(Outl1a, Outl1b, Outl1c, Outl1d, Outl1e, Outl2a, Outl2b, Outl2c,
+                  Outl2d, Outl2e, Outl3a, Outl3b, Outl3c, Outl3d, Outl3e, Outl4a,
+                  Outl4b, Outl4c, Outl5a)
+
+#Repeat everything with quarter 4 changing name of saved plots
+
+outliers2 <- rbind(Outl1a, Outl1b, Outl1c, Outl1d, Outl1e, Outl2a, Outl2b, Outl2c,
+                   Outl2d, Outl2e, Outl3a, Outl3b, Outl3c, Outl3d, Outl3e, Outl4a,
+                   Outl4b, Outl4c, Outl5a)
+
+#merge outliers from both quarters
+outliers <- rbind(outliers1,outliers2)
+write.csv(outliers, file = "BITSouliers.csv")
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # Fitting model for length-weight relationship#

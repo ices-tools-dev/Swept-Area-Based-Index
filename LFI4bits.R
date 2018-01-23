@@ -26,11 +26,11 @@ library(gamm4)
 #~~~~~~~~~~~~~~~#
 
 
-hh_bits <- getDATRAS(record = "HH", "BITS", years = 1991:2017, quarters = 1)
+hh_bits <- getDATRAS(record = "HH", "BITS", years = 1991:2017, quarters = 4)
 
-hl_bits <- getDATRAS(record = "HL", "BITS", years = 1991:2017, quarters = 1)
+hl_bits <- getDATRAS(record = "HL", "BITS", years = 1991:2017, quarters = 4)
 
-ca_bits<-getDATRAS(record="CA",survey =  "BITS", years = 1991:2017, quarters = 1)
+ca_bits<-getDATRAS(record="CA",survey =  "BITS", years = 1991:2017, quarters = 4)
 
 speclist <- getCodeList("SpecWoRMS")
 
@@ -185,12 +185,12 @@ Outl4a <- Outl4a[!duplicated(Outl4a[c("Country", "Year", "Gear", "HaulNo")]),]
 
 sum(is.na(bits$WingSpread))
 bits%>% ggplot(aes(WingSpread,HaulNo) )+geom_point(aes(colour= Country))
-ggsave("outl6q1.tiff", units="in", width=5, height=4, dpi=300, compression = 'lzw')
+ggsave("outl6q4.tiff", units="in", width=5, height=4, dpi=300, compression = 'lzw')
 bits%>% ggplot(aes(WingSpread,DoorSpread) )+geom_point(aes(colour= Country))
 
-
 #Something here for wingspread, poland and estonia, wrong
-
+Outl4d <- bits %>% filter(Country ==c("POL", "RUS", "EST"), WingSpread > 0)
+Outl4d <- Outl4d[!duplicated(Outl4d[c("Country", "Year", "Gear", "HaulNo")]),]
 
 
 bits%>% ggplot(aes(DoorSpread,HaulNo) )+geom_point()+ facet_wrap(~Country)
@@ -245,7 +245,7 @@ bits%>% ggplot(aes(Distance,Distance2) )+geom_point()+facet_wrap(~Country)
 #The coordinates are wrong in most cases, they give distance = 0
 # can´t be used to calculate distance,
 
-ggsave("outl6q1.tiff", units="in", width=5, height=4, dpi=300, compression = 'lzw')
+ggsave("outl8q4.tiff", units="in", width=5, height=4, dpi=300, compression = 'lzw')
 
 bits%>% ggplot(aes(Distance,GroundSpeed) )+geom_point()+facet_wrap(~Country)
 
@@ -253,7 +253,7 @@ bits%>% ggplot(aes(Distance,GroundSpeed) )+geom_point()+facet_wrap(~Country)
 
 bits%>% ggplot(aes(Distance,(HaulDur*GroundSpeed)))+geom_point()+facet_wrap(~Country)
 bits%>% ggplot(aes(GroundSpeed, HaulNo))+geom_point()+facet_wrap(~Country)
-ggsave("outl7q1.tiff", units="in", width=5, height=4, dpi=300, compression = 'lzw')
+ggsave("outl7q4.tiff", units="in", width=5, height=4, dpi=300, compression = 'lzw')
 
 bits%>% ggplot(aes(HaulDur, HaulNo))+geom_point()+facet_wrap(~Country)
 bits%>% ggplot(aes(HaulDur, Distance))+geom_point()+facet_wrap(~Country)
@@ -267,13 +267,13 @@ bits%>% ggplot(aes(Distance,(HaulDur*GroundSpeed)))+geom_point()+facet_wrap(~Cou
 
 outliers1 <- rbind(Outl1a, Outl1b, Outl1c, Outl1d, Outl1e, Outl2a, Outl2b, Outl2c,
                   Outl2d, Outl2e, Outl3a, Outl3b, Outl3c, Outl3d, Outl3e, Outl4a,
-                  Outl4b, Outl4c, Outl5a)
+                  Outl4b, Outl4c, Outl4d, Outl5a)
 
 #Repeat everything with quarter 4 changing name of saved plots
 
 outliers2 <- rbind(Outl1a, Outl1b, Outl1c, Outl1d, Outl1e, Outl2a, Outl2b, Outl2c,
                    Outl2d, Outl2e, Outl3a, Outl3b, Outl3c, Outl3d, Outl3e, Outl4a,
-                   Outl4b, Outl4c, Outl5a)
+                   Outl4b, Outl4c, Outl4d, Outl5a)
 
 #merge outliers from both quarters
 outliers <- rbind(outliers1,outliers2)

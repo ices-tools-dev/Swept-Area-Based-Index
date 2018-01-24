@@ -26,11 +26,11 @@ library(gamm4)
 #~~~~~~~~~~~~~~~#
 
 
-hh_bits <- getDATRAS(record = "HH", "BITS", years = 1991:2017, quarters = 4)
+hh_bits <- getDATRAS(record = "HH", "BITS", years = 1991:2017, quarters = 1)
 
-hl_bits <- getDATRAS(record = "HL", "BITS", years = 1991:2017, quarters = 4)
+hl_bits <- getDATRAS(record = "HL", "BITS", years = 1991:2017, quarters = 1)
 
-ca_bits<-getDATRAS(record="CA",survey =  "BITS", years = 1991:2017, quarters = 4)
+ca_bits<-getDATRAS(record="CA",survey =  "BITS", years = 1991:2017, quarters = 1)
 
 speclist <- getCodeList("SpecWoRMS")
 
@@ -156,6 +156,9 @@ Outl2e <- e %>% filter( HLNoAtLngt > max(e$HLNoAtLngt, na.rm=TRUE)*0.85)
 bits%>% ggplot(aes(CatCatchWgt, Year) )+geom_point(aes(colour= Country))+
   facet_wrap(~Species,scales = "free")
 
+bits%>% ggplot(aes(LngtClass, CatCatchWgt) )+geom_point(aes(colour= Country))+ 
+  facet_wrap(~Species,scales = "free")
+
 ggsave("outl3q4.tiff", units="in", width=5, height=4, dpi=300, compression = 'lzw')
 
 #same, select upper third for check, 
@@ -178,7 +181,8 @@ Outl3e <- Outl3e[!duplicated(Outl3e[c("Country", "Year", "Gear", "HaulNo")]),]
 #Outliers4: DoorSpread consistency and extreme values 
 sum(is.na(bits$DoorSpread))
 bits%>% ggplot(aes(DoorSpread,HaulNo) )+geom_point(aes(colour= Country))
-
+bits%>% ggplot(aes(Distance,DoorSpread) )+geom_point()+facet_wrap(~Country)
+ggsave("outl9q4.tiff", units="in", width=5, height=4, dpi=300, compression = 'lzw')
 
 Outl4a <- bits %>% filter(DoorSpread > max(bits$DoorSpread, na.rm=TRUE)*0.85)
 Outl4a <- Outl4a[!duplicated(Outl4a[c("Country", "Year", "Gear", "HaulNo")]),]

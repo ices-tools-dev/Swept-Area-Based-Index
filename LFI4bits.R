@@ -147,6 +147,10 @@ Outl1c <- c %>% filter( IndWgt > max(c$IndWgt, na.rm=TRUE)*0.85)
 Outl1d <- d %>% filter( IndWgt > max(d$IndWgt, na.rm=TRUE)*0.85)
 Outl1e <- e %>% filter( IndWgt > max(e$IndWgt, na.rm=TRUE)*0.85)
 
+#save bitsq4 for speed
+save(bits, file= "bitsq4.RData")
+load("bitsq4.RData")
+
 #Check points out of the regression
 
 bitslm <- bits %>% 
@@ -194,6 +198,8 @@ bitslm <- bits %>%
   Outl1a <- a %>% filter( log(IndWgt) > logFitIndWgtupper)
   Outl1a2 <- a %>% filter(log(IndWgt) < logFitIndWgtlower)
   Outl1a <- Outl1a[!duplicated(Outl1a[c("Country", "Year", "Gear", "HaulNo", "IndWgt", "LngtClass")]),]
+  Outl1a2 <- Outl1a2[!duplicated(Outl1a2[c("Country", "Year", "Gear", "HaulNo", "IndWgt", "LngtClass")]),]
+  
   Outl1b <- b %>% filter( IndWgt > max(b$IndWgt, na.rm=TRUE)*0.85)
   Outl1c <- c %>% filter( IndWgt > max(c$IndWgt, na.rm=TRUE)*0.85)
   Outl1d <- d %>% filter( IndWgt > max(d$IndWgt, na.rm=TRUE)*0.85)

@@ -26,11 +26,11 @@ library(gamm4)
 #~~~~~~~~~~~~~~~#
 
 
-hh_bits <- getDATRAS(record = "HH", "BITS", years = 1991:2017, quarters = 4)
+hh_bits <- getDATRAS(record = "HH", "BITS", years = 1991:2017, quarters = 1)
 
-hl_bits <- getDATRAS(record = "HL", "BITS", years = 1991:2017, quarters = 4)
+hl_bits <- getDATRAS(record = "HL", "BITS", years = 1991:2017, quarters = 1)
 
-ca_bits<-getDATRAS(record="CA",survey =  "BITS", years = 1991:2017, quarters = 4)
+ca_bits<-getDATRAS(record="CA",survey =  "BITS", years = 1991:2017, quarters = 1)
 
 speclist <- getCodeList("SpecWoRMS")
 
@@ -92,40 +92,11 @@ bits[bits == Inf] <- NA
 
 
 
-#Substitute -9, and 0 by NA
-#sum(is.na(bits$IndWgt))
-#bits$IndWgt[bits$IndWgt == 0] <- NA
-#bits$IndWgt[bits$IndWgt == -9] <- NA
-
-#sum(is.na(bits$LngtClass))
-#bits$LngtClass[bits$LngtClass == 0] <- NA
-#bits$LngtClass[bits$LngtClass == -9] <- NA
-
-#bits$DoorSpread[bits$DoorSpread == -9] <- NA
-#bits$DoorSpread[bits$DoorSpread == 0] <- NA
-
-#bits$HLNoAtLngt[bits$HLNoAtLngt == -9] <- NA
-#bits$HLNoAtLngt[bits$HLNoAtLngt == 0] <- NA
-
-#bits$WingSpread[bits$WingSpread == -9] <- NA
-#bits$WingSpread[bits$WingSpread == 0] <- NA
-
-#bits$GroundSpeed[bits$GroundSpeed == -9] <- NA
-#bits$GroundSpeed[bits$GroundSpeed == 0] <- NA
-
-#bits$HaulDur[bits$HaulDur == -9] <- NA
-#bits$HaulDur[bits$HaulDur == 0] <- NA
-
-#bits$Distance[bits$Distance == -9] <- NA
-#bits$Distance[bits$Distance < 10] <- NA
-
-#bits$WingSpread[bits$WingSpread == -9] <- NA
-#bits$WingSpread[bits$WingSpread == 0] <- NA
-
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # Plotting data to check and extract outliers #
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#
+
+bits$id <- 1:nrow(bits) 
 
 #select data over the top 85% of the range of values for check,
 
@@ -133,14 +104,25 @@ bits[bits == Inf] <- NA
 bits%>% ggplot(aes(IndWgt,LngtClass) )+geom_point(aes(colour= Country))+
   facet_wrap(~Species,scales = "free")
 
-ggsave("outl1q4.tiff", units="in", width=5, height=4, dpi=300, compression = 'lzw')
+ggsave("IndWgtQ1.tiff", units="in", width=5, height=4, dpi=300, compression = 'lzw')
 
-a <- bits %>% filter(Species == "Gadus morhua")
-b <- bits %>%filter(Species == "Merlangius merlangus")
-c <- bits %>%filter(Species == "Platichthys flesus")
-d <- bits %>% filter(Species == "Pleuronectes platessa")
-e <- bits %>% filter(Species == "Scophthalmus maximus")
-  
+a <- bits %>% filter(Species == "Gadus morhua")%>%
+  select(Year, Species, IndWgt, LngtClass, id) %>%
+  filter(!is.na(IndWgt)) %>%filter(IndWgt > 0)
+b <- bits %>%filter(Species == "Merlangius merlangus")%>%
+  select(Year, Species, IndWgt, LngtClass, id)%>%
+  filter(!is.na(IndWgt)) %>%filter(IndWgt > 0)
+c <- bits %>%filter(Species == "Platichthys flesus")%>%
+  select(Year, Species, IndWgt, LngtClass, id)%>%
+  filter(!is.na(IndWgt)) %>%filter(IndWgt > 0)
+d <- bits %>% filter(Species == "Pleuronectes platessa")%>%
+  select(Year, Species, IndWgt, LngtClass, id)%>%
+  filter(!is.na(IndWgt)) %>%filter(IndWgt > 0)
+e <- bits %>% filter(Species == "Scophthalmus maximus")%>% 
+  select(Year, Species, IndWgt, LngtClass, id)%>%
+  filter(!is.na(IndWgt)) %>%filter(IndWgt > 0)
+
+
 Outl1a <- a %>% filter( IndWgt > max(a$IndWgt, na.rm=TRUE)*0.85)
 Outl1b <- b %>% filter( IndWgt > max(b$IndWgt, na.rm=TRUE)*0.85)
 Outl1c <- c %>% filter( IndWgt > max(c$IndWgt, na.rm=TRUE)*0.85)
@@ -153,86 +135,174 @@ load("bitsq4.RData")
 
 #Check points out of the regression
 
-bitslm <- bits %>% 
-  group_by(Species)%>%
-  filter(!is.na(IndWgt), IndWgt > 0) %>%
-  do(lm = lm(log(IndWgt) ~ log(LngtClass), data = ., 
-              singular.ok = T, 
-           na.action = na.exclude))
-
-##Get the coefficients
-  bitslm <- bitslm %>% 
-    tidy(lm)
-  bitslm <- bitslm %>% select(term, estimate, std.error) %>% 
-                spread(term, estimate)%>%
-                rename(intercept = `(Intercept)`, 
-                slope = `log(LngtClass)`)
+  a <- within(a, {
+    fYear_a <- fYear_b <- factor(Year, levels = sort(unique(a$Year)))
+    Year_a <- Year_b <- Year
+  })
   
-  bitslm$upper <- bitslm$slope + 2*bitslm$std.error
-  bitslm$lower <- bitslm$slope - 2*bitslm$std.error
+  # fit the model
+  gam1 <- gam(log(IndWgt) ~ log(LngtClass),
+              data = a,
+              drop.unused.levels = FALSE)
   
-  bitslm      <- subset(bitslm, select=-std.error)
-  bitslm <- aggregate(bitslm, by=list(bitslm$Species), min,na.rm = TRUE)
+    
+  unname(which(abs(residuals(gam1, type = "scaled.pearson")) > 2.5))
+  gam.check(gam1)
   
-  bits <- left_join(bits, bitslm)                           
+  a$outlier <- abs(residuals(gam1, type = "scaled.pearson")) > 3
   
-  bits$logFitIndWgt <- bits$intercept+bits$slope*log(bits$LngtClass)
-  bits$logFitIndWgtupper <- bits$intercept+bits$upper*log(bits$LngtClass)
-  bits$logFitIndWgtlower <- bits$intercept+bits$lower*log(bits$LngtClass)
-  
-  bits%>% ggplot() +geom_point(aes(log(IndWgt), LngtClass), color = "red")+
-    geom_point(aes(logFitIndWgtupper, LngtClass), color = "blue") + 
-    geom_point(aes(logFitIndWgtlower, LngtClass), color = "blue") +
-                     facet_wrap(~Species,scales = "free")
-  
-  
-    bits$FitIndWgt <- 10^(bits$logFitIndWgt)
-  #bits <- transform(bits, IndWgt = ifelse(!is.na(IndWgt), IndWgt, IndWgtFit))
-  
-  a <- bits %>% filter(Species == "Gadus morhua")
-  b <- bits %>%filter(Species == "Merlangius merlangus")
-  c <- bits %>%filter(Species == "Platichthys flesus")
-  d <- bits %>% filter(Species == "Pleuronectes platessa")
-  e <- bits %>% filter(Species == "Scophthalmus maximus")
-  
-  Outl1a <- a %>% filter( log(IndWgt) > logFitIndWgtupper)
-  Outl1a2 <- a %>% filter(log(IndWgt) < logFitIndWgtlower)
-  Outl1a <- Outl1a[!duplicated(Outl1a[c("Country", "Year", "Gear", "HaulNo", "IndWgt", "LngtClass")]),]
-  Outl1a2 <- Outl1a2[!duplicated(Outl1a2[c("Country", "Year", "Gear", "HaulNo", "IndWgt", "LngtClass")]),]
-  
-  Outl1b <- b %>% filter( IndWgt > max(b$IndWgt, na.rm=TRUE)*0.85)
-  Outl1c <- c %>% filter( IndWgt > max(c$IndWgt, na.rm=TRUE)*0.85)
-  Outl1d <- d %>% filter( IndWgt > max(d$IndWgt, na.rm=TRUE)*0.85)
-  Outl1e <- e %>% filter( IndWgt > max(e$IndWgt, na.rm=TRUE)*0.85)
-  
-  
+  a$threshold <- ifelse(a$LngtClass < 20, 4, 1) * 2.5
+  a$outlier <- abs(residuals(gam1, type = "scaled.pearson")) > a$threshold
   
 
-  bits%>% ggplot(aes(log(IndWgt),log(LngtClass)))+geom_point(aes(colour= Country))+
-  facet_wrap(~Species,scales = "free")
+  a$id[a$outlier == TRUE]  
   
-bits%>% ggplot(aes(log(IndWgt),logIndWgt))+geom_point(aes(colour= Country))+
-  facet_wrap(~Species,scales = "free")
+  lattice::xyplot(log(LngtClass) ~ log(IndWgt), groups = outlier, data = a)
+  #ggsave
+  lattice::xyplot(LngtClass ~ IndWgt, groups = outlier, data = a)
+  #ggsave
+  
+  b <- within(b, {
+    fYear_a <- fYear_b <- factor(Year, levels = sort(unique(b$Year)))
+    Year_a <- Year_b <- Year
+   })
+  
+  # fit the model
+  gam1 <- gam(log(IndWgt) ~ log(LngtClass),
+              data = b,
+              drop.unused.levels = FALSE)
+  
+  
+  unname(which(abs(residuals(gam1, type = "scaled.pearson")) > 2.5))
+  gam.check(gam1)
 
-bits%>% ggplot(aes(log(LngtClass),logIndWgt))+geom_point()+
-  facet_wrap(~Species,scales = "free")
+  b$outlier <- abs(residuals(gam1, type = "scaled.pearson")) > 3
+  
+  b$threshold <- ifelse(b$LngtClass < 20, 4, 1) * 2.5
+  b$outlier <- abs(residuals(gam1, type = "scaled.pearson")) > b$threshold
+  
+  
+  b$id[a$outlier == TRUE]  
+  
+  lattice::xyplot(log(LngtClass) ~ log(IndWgt), groups = outlier, data = b)
+  #ggsave
+  lattice::xyplot(LngtClass ~ IndWgt, groups = outlier, data = b)
+  #ggsave
+  
+  c <- within(c, {
+    fYear_a <- fYear_b <- factor(Year, levels = sort(unique(c$Year)))
+    Year_a <- Year_b <- Year
+  })
+  
+  # fit the model
+  gam1 <- gam(log(IndWgt) ~ log(LngtClass),
+              data = c,
+              drop.unused.levels = FALSE)
+  
+  
+  unname(which(abs(residuals(gam1, type = "scaled.pearson")) > 2.5))
+  gam.check(gam1)
+  
 
-bits%>% ggplot(aes(log(LngtClass),log(IndWgt)))+geom_point(aes(colour= Country))+
-  facet_wrap(~Species,scales = "free")
+  c$outlier <- abs(residuals(gam1, type = "scaled.pearson")) > 3
+  
+  c$threshold <- ifelse(c$LngtClass < 20, 4, 1) * 2.5
+  c$outlier <- abs(residuals(gam1, type = "scaled.pearson")) > c$threshold
+  
+  
+  c$id[a$outlier == TRUE]  
+  
+  lattice::xyplot(log(LngtClass) ~ log(IndWgt), groups = outlier, data = c)
+  #ggsave
+  lattice::xyplot(LngtClass ~ IndWgt, groups = outlier, data = c)
+  #ggsave
+  
+  
+  d <- within(d, {
+    fYear_a <- fYear_b <- factor(Year, levels = sort(unique(d$Year)))
+    Year_a <- Year_b <- Year
+  })
+  
+  # fit the model
+  gam1 <- gam(log(IndWgt) ~ log(LngtClass),
+              data = d,
+              drop.unused.levels = FALSE)
+  
+  
+  unname(which(abs(residuals(gam1, type = "scaled.pearson")) > 2.5))
+  gam.check(gam1)
+  
+  
+  d$outlier <- abs(residuals(gam1, type = "scaled.pearson")) > 3
+  
+  d$threshold <- ifelse(d$LngtClass < 20, 4, 1) * 2.5
+  d$outlier <- abs(residuals(gam1, type = "scaled.pearson")) > d$threshold
+  
+  
+  d$id[a$outlier == TRUE]  
+  
+  lattice::xyplot(log(LngtClass) ~ log(IndWgt), groups = outlier, data = d)
+  #ggsave
+  lattice::xyplot(LngtClass ~ IndWgt, groups = outlier, data = d)
+  #ggsave
+  
+  e <- within(e, {
+    fYear_a <- fYear_b <- factor(Year, levels = sort(unique(e$Year)))
+    Year_a <- Year_b <- Year
+  })
+  
+  # fit the model
+  gam1 <- gam(log(IndWgt) ~ log(LngtClass),
+              data = e,
+              drop.unused.levels = FALSE)
+  
+  
+  unname(which(abs(residuals(gam1, type = "scaled.pearson")) > 2.5))
+  gam.check(gam1)
+  
+  
+  e$outlier <- abs(residuals(gam1, type = "scaled.pearson")) > 3
+  
+  e$threshold <- ifelse(e$LngtClass < 20, 4, 1) * 2.5
+  e$outlier <- abs(residuals(gam1, type = "scaled.pearson")) > e$threshold
+  
+  
+  d$id[a$outlier == TRUE]  
+  
+  lattice::xyplot(log(LngtClass) ~ log(IndWgt), groups = outlier, data = e)
+  #ggsave
+  lattice::xyplot(LngtClass ~ IndWgt, groups = outlier, data = e)
+  #ggsave
+  
+  
+  #finish exporting outliers for IndWgt
+  
+  
 
-bits%>% ggplot(aes(logIndWgt,log(LngtClass))+geom_point(aes(colour= Country))+
-  facet_wrap(~Species,scales = "free"))
 
-#calculate range of IndWgt inside  2 times standard error
-#up and down (explain better)
-
-
-
-#Distribution of length classes by year
+#Extreme length classes by year
+  
 bits%>% ggplot(aes(LngtClass, Year) )+geom_point(aes(colour= Country))+ 
     facet_wrap(~Species,scales = "free")
 
-#Outliers2: Number of individuals at length
+#ggsave
+
+a <- bits %>% filter(Species == "Gadus morhua")
+b <- bits %>%filter(Species == "Merlangius merlangus")
+c <- bits %>%filter(Species == "Platichthys flesus")
+d <- bits %>% filter(Species == "Pleuronectes platessa")
+e <- bits %>% filter(Species == "Scophthalmus maximus")
+
+
+
+Outl2a <- a %>% filter( LngtClass > max(a$LngtClass, na.rm=TRUE)*0.95)
+Outl2b <- b %>% filter( LngtClass > max(b$LngtClass, na.rm=TRUE)*0.95)
+Outl2c <- c %>% filter( LngtClass > max(c$LngtClass, na.rm=TRUE)*0.95)
+Outl2d <- d %>% filter( LngtClass > max(d$LngtClass, na.rm=TRUE)*0.95)
+Outl2e <- e %>% filter( LngtClass > max(e$LngtClass, na.rm=TRUE)*0.95)
+
+
+#Extreme number of individuals at length
 bits%>% ggplot(aes(LngtClass, HLNoAtLngt) )+geom_point(aes(colour= Country))+ 
   facet_wrap(~Species,scales = "free")
 
@@ -245,54 +315,15 @@ Outl2d <- d %>% filter( HLNoAtLngt > max(d$HLNoAtLngt, na.rm=TRUE)*0.85)
 Outl2e <- e %>% filter( HLNoAtLngt > max(e$HLNoAtLngt, na.rm=TRUE)*0.85)
 
 
-#decided this is not relevant for LFI calculations, just confussing
-#Outliers3: CatCatchWeight
-#bits%>% ggplot(aes(CatCatchWgt, Year) )+geom_point(aes(colour= Country))+
-#  facet_wrap(~Species,scales = "free")
+#DoorSpread and WingSpread consistency and extreme values 
 
-#bits%>% ggplot(aes(LngtClass, CatCatchWgt) )+geom_point(aes(colour= Country))+ 
-#  facet_wrap(~Species,scales = "free")
-
-#ggsave("outl3bisq1.tiff", units="in", width=5, height=4, dpi=300, compression = 'lzw')
-
-#same, select upper third for check, 
-#Outl3a <- a %>% filter(CatCatchWgt > max(a$CatCatchWgt, na.rm=TRUE)*0.85)
-#Outl3a <- Outl3a[!duplicated(Outl3a[c("Country", "Year", "Gear", "HaulNo")]),] 
-
-#Outl3b <- b %>% filter(CatCatchWgt > max(b$CatCatchWgt, na.rm=TRUE)*0.85)
-#Outl3b <- Outl3b[!duplicated(Outl3b[c("Country", "Year", "Gear", "HaulNo")]),]
-
-#Outl3c <- c %>% filter(CatCatchWgt > max(c$CatCatchWgt, na.rm=TRUE)*0.85)
-#Outl3c <- Outl3c[!duplicated(Outl3c[c("Country", "Year", "Gear", "HaulNo")]),]
-
-#Outl3d <- d %>% filter(CatCatchWgt > max(d$CatCatchWgt, na.rm=TRUE)*0.85)
-#Outl3d <- Outl3d[!duplicated(Outl3d[c("Country", "Year", "Gear", "HaulNo")]),]
-
-#Outl3e <- e %>% filter(CatCatchWgt > max(e$CatCatchWgt, na.rm=TRUE)*0.85)
-#Outl3e <- Outl3e[!duplicated(Outl3e[c("Country", "Year", "Gear", "HaulNo")]),]
-
-
-#Outliers4: DoorSpread consistency and extreme values 
-sum(is.na(bits$DoorSpread))
 bits%>% ggplot(aes(DoorSpread,HaulNo) )+geom_point(aes(colour= Country))
-bits%>% ggplot(aes(Distance,DoorSpread) )+geom_point()+facet_wrap(~Country)
+#ggsave
+
 ggsave("outl9q4.tiff", units="in", width=5, height=4, dpi=300, compression = 'lzw')
 
 Outl4a <- bits %>% filter(DoorSpread > max(bits$DoorSpread, na.rm=TRUE)*0.85)
 Outl4a <- Outl4a[!duplicated(Outl4a[c("Country", "Year", "Gear", "HaulNo")]),]
-
-sum(is.na(bits$WingSpread))
-bits%>% ggplot(aes(WingSpread,HaulNo) )+geom_point(aes(colour= Country))
-ggsave("outl6q4.tiff", units="in", width=5, height=4, dpi=300, compression = 'lzw')
-bits%>% ggplot(aes(WingSpread,DoorSpread) )+geom_point(aes(colour= Country))
-
-#Something here for wingspread, poland and estonia, wrong
-Outl4d <- bits %>% filter(Country ==c("POL", "RUS", "EST"), WingSpread > 0)
-Outl4d <- Outl4d[!duplicated(Outl4d[c("Country", "Year", "Gear", "HaulNo")]),]
-
-
-bits%>% ggplot(aes(DoorSpread,HaulNo) )+geom_point()+ facet_wrap(~Country)
-ggsave("outl4q4.tiff", units="in", width=5, height=4, dpi=300, compression = 'lzw')
 
 #weird series of doorspread = 50 in Pol and also in RUS
 #How could I make this filter more general?
@@ -301,22 +332,33 @@ Outl4b <- Outl4b[!duplicated(Outl4b[c("Country", "Year", "Gear", "HaulNo")]),]
 Outl4c <- bits %>% filter(Country =="RUS", DoorSpread == c(68,70))
 Outl4c <- Outl4c[!duplicated(Outl4c[c("Country", "Year", "Gear", "HaulNo")]),]
 
+bits%>% ggplot(aes(WingSpread,HaulNo) )+geom_point(aes(colour= Country))
+ggsave("outl6q4.tiff", units="in", width=5, height=4, dpi=300, compression = 'lzw')
 
-bits%>% ggplot(aes(Ship,CatCatchWgt) )+geom_point()+ facet_wrap(~Year,scales = "free")
-bits%>% ggplot(aes(Ship,CatCatchWgt) )+geom_point()+ facet_wrap(~Country,scales = "free")
+#Something here for wingspread, poland and estonia, wrong
+Outl4d <- bits %>% filter(Country ==c("POL", "RUS", "EST"), WingSpread > 0)
+Outl4d <- Outl4d[!duplicated(Outl4d[c("Country", "Year", "Gear", "HaulNo")]),]
 
-bits%>% ggplot(aes(HaulNo,CatCatchWgt) )+geom_point()+ facet_wrap(~Year,scales = "free")
 
-#Outliers5: Distance
+#Distance
 #there are still some zeros that have not become NAs here, no idea whytf!!
 sum(is.na(bits$Distance)) 
 bits%>% ggplot(aes(Distance,HaulNo) )+geom_point()+facet_wrap(~Country)
 ggsave("outl5q4.tiff", units="in", width=5, height=4, dpi=300, compression = 'lzw')
 
-Outl5a <- bits %>% filter(Distance > max(bits$Distance, na.rm=TRUE)*0.85)
+##I need to do df for each country, an extract 0.85 upper, and those less than 50 meters
+
+Outl5a <- bits %>% group_by("Country")%>%
+  filter(Distance > max(bits$Distance, na.rm=TRUE)*0.85)
 Outl5a <- Outl5a[!duplicated(Outl5a[c("Country", "Year", "Gear", "HaulNo")]),]
 
-# Calculate distance with the coordinates
+# Calculate distance with the coordinates given
+
+bits$HaulLat[bits$HaulLat == -9] <- NA
+bits$HaulLong[bits$HaulLong == -9] <- NA
+bits$ShootLat[bits$ShootLat == -9] <- NA
+bits$ShootLong[bits$ShootLong == -9] <- NA
+
 earth_distance <- function (long1, lat1, long2, lat2) {
   rad <- pi/180
   a1 <- lat1 * rad
@@ -332,51 +374,31 @@ earth_distance <- function (long1, lat1, long2, lat2) {
   return(d)
 }
 
-#library(rworldmap)
-#newmap <- getMap(resolution = "low")
-#plot(newmap, xlim = c(8, 25), ylim = c(53, 66), asp = 1)
-#points(bits$ShootLong, bits$ShootLat, col = "red", cex = .6)
-#points(bits$HaulLong, bits$HaulLat, col = "blue", cex = .6)
-
-bits$HaulLat[bits$HaulLat == -9] <- NA
-bits$HaulLong[bits$HaulLong == -9] <- NA
-bits$ShootLat[bits$ShootLat == -9] <- NA
-bits$ShootLong[bits$ShootLong == -9] <- NA
-
+#Distance2 is the distance as calculated with the submitted coordinates
 bits$Distance2 <- 1000*earth_distance(bits$HaulLong, bits$HaulLat,bits$ShootLong, bits$ShootLat)
 
+bits%>% ggplot(aes(Distance2,HaulNo) )+geom_point()+facet_wrap(~Country)
+#ggsave
+
+#outliers all hauls more than 10 km distance2 and those less than 50m
+
+#relation between reported and calculated distance, less data
+
 bits%>% ggplot(aes(Distance,Distance2) )+geom_point()+facet_wrap(~Country)
-#The coordinates are wrong in most cases, they give distance = 0
-# can´t be used to calculate distance,
 
-ggsave("outl8q4.tiff", units="in", width=5, height=4, dpi=300, compression = 'lzw')
 
-#some sensible way to extract outliers?
-bits%>% ggplot(aes(Distance,GroundSpeed) )+geom_point()+facet_wrap(~Country)
-bits%>% ggplot(aes(Distance,Year) )+geom_point()+facet_wrap(~Country)
-bits%>% ggplot(aes(Distance, HaulNo) )+geom_point()+facet_wrap(~Country)
-ggsave("distanceq4.tiff", units="in", width=5, height=4, dpi=300, compression = 'lzw')
-
-bits%>% ggplot(aes(Distance2, HaulNo) )+geom_point()+facet_wrap(~Country)
-bits$Distance2[bits$Distance2 > 10000] <- NA
-ggsave("distance2q4.tiff", units="in", width=5, height=4, dpi=300, compression = 'lzw')
-
-#Distance, speed, duration checks
-#extract outliers like with IndWgt/LngtClass relationship?
+#GroundSpeed
+bits%>% ggplot(aes(GroundSpeed, HaulNo))+geom_point()+facet_wrap(~Country)
+#Extract GroundSpeed less than 2.0
+ggsave("outl7q4.tiff", units="in", width=5, height=4, dpi=300, compression = 'lzw')
 
 bits%>% ggplot(aes(Distance,(HaulDur*GroundSpeed)))+geom_point()+facet_wrap(~Country)
 
-#extract low speed oultiers
-bits%>% ggplot(aes(GroundSpeed, HaulNo))+geom_point()+facet_wrap(~Country)
-ggsave("outl7q4.tiff", units="in", width=5, height=4, dpi=300, compression = 'lzw')
-
+#Haul Duration
 bits%>% ggplot(aes(HaulDur, HaulNo))+geom_point()+facet_wrap(~Country)
 bits%>% ggplot(aes(HaulDur, Distance))+geom_point()+facet_wrap(~Country)
 #I think this outliers in Denmark are the same as before
 
-#In a simple world, distance should be linear with Groundspeed*HaulDur
-
-bits%>% ggplot(aes(Distance,(HaulDur*GroundSpeed)))+geom_point()+facet_wrap(~Country)
 
 #merge all outliers and export excel
 
@@ -386,9 +408,6 @@ outliers1 <- rbind(Outl1a, Outl1b, Outl1c, Outl1d, Outl1e, Outl2a, Outl2b, Outl2
 
 #Repeat everything with quarter 4 changing name of saved plots
 
-outliers2 <- rbind(Outl1a, Outl1b, Outl1c, Outl1d, Outl1e, Outl2a, Outl2b, Outl2c,
-                   Outl2d, Outl2e, Outl3a, Outl3b, Outl3c, Outl3d, Outl3e, Outl4a,
-                   Outl4b, Outl4c, Outl4d, Outl5a)
 
 #merge outliers from both quarters
 outliers <- rbind(outliers1,outliers2)

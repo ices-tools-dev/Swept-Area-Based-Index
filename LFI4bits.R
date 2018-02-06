@@ -150,10 +150,14 @@ Outl1$outlier <- "IndWgt"
 
   a$id[a$outlier == TRUE]  
   
-  lattice::xyplot(log(LngtClass) ~ log(IndWgt), groups = outlier, data = a)
-  ggsave("CodlogFitQ1.tiff", units="in", width=5, height=5, dpi=300)
-  lattice::xyplot(LngtClass ~ IndWgt, groups = outlier, data = a)
-  ggsave("CodFitQ1.tiff", units="in", width=5, height=5, dpi=300)
+  plot1<-lattice::xyplot(log(LngtClass) ~ log(IndWgt), groups = outlier, data = a)
+  lattice::trellis.device(device="png", filename="CodlogFitQ1.tiff")
+  print(plot1)
+  dev.off()
+  plot2<-lattice::xyplot(LngtClass ~ IndWgt, groups = outlier, data = a)
+  lattice::trellis.device(device="tiff", filename="CodFitQ1.tiff")
+  print(plot2)
+  dev.off()
   
  
   # fit the model
@@ -173,10 +177,14 @@ Outl1$outlier <- "IndWgt"
   
   b$id[b$outlier == TRUE]  
   
-  lattice::xyplot(log(LngtClass) ~ log(IndWgt), groups = outlier, data = b)
-  ggsave("HakelogFitQ1.tiff", units="in", width=5, height=5, dpi=300)
-  lattice::xyplot(LngtClass ~ IndWgt, groups = outlier, data = b)
-  ggsave("HakeFitQ1.tiff", units="in", width=5, height=5, dpi=300)
+  plot1<-lattice::xyplot(log(LngtClass) ~ log(IndWgt), groups = outlier, data = a)
+  lattice::trellis.device(device="png", filename="HakelogFitQ1.tiff")
+  print(plot1)
+  dev.off()
+  plot2<-lattice::xyplot(LngtClass ~ IndWgt, groups = outlier, data = a)
+  lattice::trellis.device(device="tiff", filename="HakeFitQ1.tiff")
+  print(plot2)
+  dev.off()
   
   # fit the model
   gam1 <- gam(log(IndWgt) ~ log(LngtClass),
@@ -196,10 +204,14 @@ Outl1$outlier <- "IndWgt"
   
   c$id[c$outlier == TRUE]  
   
-  lattice::xyplot(log(LngtClass) ~ log(IndWgt), groups = outlier, data = c)
-  ggsave("FlologFitQ1.tiff", units="in", width=5, height=5, dpi=300)
-  lattice::xyplot(LngtClass ~ IndWgt, groups = outlier, data = c)
-  ggsave("FloFitQ1.tiff", units="in", width=5, height=5, dpi=300)
+  plot1<-lattice::xyplot(log(LngtClass) ~ log(IndWgt), groups = outlier, data = a)
+  lattice::trellis.device(device="png", filename="FlologFitQ1.tiff")
+  print(plot1)
+  dev.off()
+  plot2<-lattice::xyplot(LngtClass ~ IndWgt, groups = outlier, data = a)
+  lattice::trellis.device(device="tiff", filename="FloFitQ1.tiff")
+  print(plot2)
+  dev.off()
   
   
   # fit the model
@@ -220,10 +232,14 @@ Outl1$outlier <- "IndWgt"
   
   d$id[d$outlier == TRUE]  
   
-  lattice::xyplot(log(LngtClass) ~ log(IndWgt), groups = outlier, data = d)
-  ggsave("PlalogFitQ1.tiff", units="in", width=5, height=5, dpi=300)
-  lattice::xyplot(LngtClass ~ IndWgt, groups = outlier, data = d)
-  ggsave("PlaFitQ1.tiff", units="in", width=5, height=5, dpi=300)
+  plot1<-lattice::xyplot(log(LngtClass) ~ log(IndWgt), groups = outlier, data = a)
+  lattice::trellis.device(device="png", filename="PlalogFitQ1.tiff")
+  print(plot1)
+  dev.off()
+  plot2<-lattice::xyplot(LngtClass ~ IndWgt, groups = outlier, data = a)
+  lattice::trellis.device(device="tiff", filename="PlaFitQ1.tiff")
+  print(plot2)
+  dev.off()
   
   # fit the model
   gam1 <- gam(log(IndWgt) ~ log(LngtClass),
@@ -243,10 +259,14 @@ Outl1$outlier <- "IndWgt"
   
   e$id[e$outlier == TRUE]  
   
-  lattice::xyplot(log(LngtClass) ~ log(IndWgt), groups = outlier, data = e)
-  ggsave("TurlogFitQ1.tiff", units="in", width=5, height=5, dpi=300)
-  lattice::xyplot(LngtClass ~ IndWgt, groups = outlier, data = e)
-  ggsave("TurFitQ1.tiff", units="in", width=5, height=5, dpi=300)
+  plot1<-lattice::xyplot(log(LngtClass) ~ log(IndWgt), groups = outlier, data = a)
+  lattice::trellis.device(device="png", filename="TurlogFitQ1.tiff")
+  print(plot1)
+  dev.off()
+  plot2<-lattice::xyplot(LngtClass ~ IndWgt, groups = outlier, data = a)
+  lattice::trellis.device(device="tiff", filename="TurFitQ1.tiff")
+  print(plot2)
+  dev.off()
   
 #finish exporting outliers for IndWgt
   Outl2a <- a %>% filter(outlier ==TRUE)%>%select(-c(outlier, threshold))
@@ -514,7 +534,7 @@ bits[bits == Inf] <- NA
 
 #save bitsq4 for speed
 #save(bits, file= "bitsq4.RData")
-#load("bitsq4.RData")
+load("bitsq4.RData")
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # Plotting data to check and extract outliers #
@@ -571,10 +591,14 @@ a$outlier <- abs(residuals(gam1, type = "scaled.pearson")) > a$threshold
 
 a$id[a$outlier == TRUE]  
 
-lattice::xyplot(log(LngtClass) ~ log(IndWgt), groups = outlier, data = a)
-ggsave("CodlogFitQ4.tiff", units="in", width=5, height=5, dpi=300)
-lattice::xyplot(LngtClass ~ IndWgt, groups = outlier, data = a)
-ggsave("CodFitQ4.tiff", units="in", width=5, height=5, dpi=300)
+plot1<-lattice::xyplot(log(LngtClass) ~ log(IndWgt), groups = outlier, data = a)
+lattice::trellis.device(device="png", filename="CodlogFitQ4.tiff")
+print(plot1)
+dev.off()
+plot2<-lattice::xyplot(LngtClass ~ IndWgt, groups = outlier, data = a)
+lattice::trellis.device(device="tiff", filename="CodFitQ4.tiff")
+print(plot2)
+dev.off()
 
 
 # fit the model
@@ -594,10 +618,14 @@ b$outlier <- abs(residuals(gam1, type = "scaled.pearson")) > b$threshold
 
 b$id[b$outlier == TRUE]  
 
-lattice::xyplot(log(LngtClass) ~ log(IndWgt), groups = outlier, data = b)
-ggsave("HakelogFitQ4.tiff", units="in", width=5, height=5, dpi=300)
-lattice::xyplot(LngtClass ~ IndWgt, groups = outlier, data = b)
-ggsave("HakeFitQ4.tiff", units="in", width=5, height=5, dpi=300)
+plot1<-lattice::xyplot(log(LngtClass) ~ log(IndWgt), groups = outlier, data = a)
+lattice::trellis.device(device="png", filename="HakelogFitQ4.tiff")
+print(plot1)
+dev.off()
+plot2<-lattice::xyplot(LngtClass ~ IndWgt, groups = outlier, data = a)
+lattice::trellis.device(device="tiff", filename="HakeFitQ4.tiff")
+print(plot2)
+dev.off()
 
 # fit the model
 gam1 <- gam(log(IndWgt) ~ log(LngtClass),
@@ -617,11 +645,14 @@ c$outlier <- abs(residuals(gam1, type = "scaled.pearson")) > 5
 
 c$id[c$outlier == TRUE]  
 
-lattice::xyplot(log(LngtClass) ~ log(IndWgt), groups = outlier, data = c)
-ggsave("FlologFitQ4.tiff", units="in", width=5, height=5, dpi=300)
-lattice::xyplot(LngtClass ~ IndWgt, groups = outlier, data = c)
-ggsave("FloFitQ4.tiff", units="in", width=5, height=5, dpi=300)
-
+plot1<-lattice::xyplot(log(LngtClass) ~ log(IndWgt), groups = outlier, data = a)
+lattice::trellis.device(device="png", filename="FlologFitQ4.tiff")
+print(plot1)
+dev.off()
+plot2<-lattice::xyplot(LngtClass ~ IndWgt, groups = outlier, data = a)
+lattice::trellis.device(device="tiff", filename="FloFitQ4.tiff")
+print(plot2)
+dev.off()
 
 # fit the model
 gam1 <- gam(log(IndWgt) ~ log(LngtClass),
@@ -641,10 +672,14 @@ d$outlier <- abs(residuals(gam1, type = "scaled.pearson")) > d$threshold
 
 d$id[d$outlier == TRUE]  
 
-lattice::xyplot(log(LngtClass) ~ log(IndWgt), groups = outlier, data = d)
-ggsave("PlalogFitQ4.tiff", units="in", width=5, height=5, dpi=300)
-lattice::xyplot(LngtClass ~ IndWgt, groups = outlier, data = d)
-ggsave("PlaFitQ4.tiff", units="in", width=5, height=5, dpi=300)
+plot1<-lattice::xyplot(log(LngtClass) ~ log(IndWgt), groups = outlier, data = a)
+lattice::trellis.device(device="png", filename="PlalogFitQ4.tiff")
+print(plot1)
+dev.off()
+plot2<-lattice::xyplot(LngtClass ~ IndWgt, groups = outlier, data = a)
+lattice::trellis.device(device="tiff", filename="PlaFitQ4.tiff")
+print(plot2)
+dev.off()
 
 # fit the model
 gam1 <- gam(log(IndWgt) ~ log(LngtClass),
@@ -664,10 +699,14 @@ e$outlier <- abs(residuals(gam1, type = "scaled.pearson")) > e$threshold
 
 e$id[e$outlier == TRUE]  
 
-lattice::xyplot(log(LngtClass) ~ log(IndWgt), groups = outlier, data = e)
-ggsave("TurlogFitQ4.tiff", units="in", width=5, height=5, dpi=300)
-lattice::xyplot(LngtClass ~ IndWgt, groups = outlier, data = e)
-ggsave("TurFitQ4.tiff", units="in", width=5, height=5, dpi=300)
+plot1<-lattice::xyplot(log(LngtClass) ~ log(IndWgt), groups = outlier, data = a)
+lattice::trellis.device(device="png", filename="TurlogFitQ4.tiff")
+print(plot1)
+dev.off()
+plot2<-lattice::xyplot(LngtClass ~ IndWgt, groups = outlier, data = a)
+lattice::trellis.device(device="tiff", filename="TurFitQ4.tiff")
+print(plot2)
+dev.off()
 
 #finish exporting outliers for IndWgt
 Outl2a <- a %>% filter(outlier ==TRUE)%>%select(-c(outlier, threshold))
